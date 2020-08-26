@@ -1,14 +1,16 @@
 from os import path
+from tkinter.filedialog import askdirectory
 import youtube_dl
 import tkinter as tk
 import re
 
-gui = None
-tb_url = None
-tb_destination_path = None
-btn_convert = None
-err_msg = None
-youtube_uris_regex = re.compile('^(https\:\/\/)?(www\.youtube\.[a-z]{2,4}|youtu\.?be)\/.+$')
+root = None
+TB_URL = None
+TB_DESTINATION_PATH = None
+BTN_START_DOWNLOAD = None
+ERR_MSG = None
+BTN_SELECT_DIR = None
+YOUTUBE_URL_REGEX = re.compile('^(https\:\/\/)?(www\.youtube\.[a-z]{2,4}|youtu\.?be)\/.+$')
 
 
 def get_vid_info(vid_url):
@@ -34,16 +36,17 @@ def get_video_options(vid_info, vid_dest):
 
 
 def destory_err_message():
-    global err_msg
-    if err_msg:
-        err_msg.destroy()
+    global ERR_MSG
+    if ERR_MSG:
+        ERR_MSG.destroy()
 
 
 def show_error_message(msg="Please provide a youtube URL."):
-    global gui, err_msg
-    err_msg = tk.Text(master=gui)
-    err_msg.insert('1.0', msg)
-    err_msg.pack()
+    global root, ERR_MSG
+    ERR_MSG = tk.Text(master=root)
+    ERR_MSG.insert('1.0', msg)
+    ERR_MSG.configure(state=tk.DISABLED)
+    ERR_MSG.pack(side=tk.BOTTOM)
 
 
 def url_check(url):
@@ -54,7 +57,7 @@ def url_check(url):
     elif url is None:
         show_error_message()
         return False
-    elif not youtube_uris_regex.findall(url):
+    elif not YOUTUBE_URL_REGEX.findall(url):
         show_error_message("Please provide a valid Youtube URL!")
         return False
     else:
@@ -78,65 +81,86 @@ def convert_video_to_mp3():
         ])
 
 
-def create_gui_buttons():
-    global gui, btn_convert
-    btn_convert = tk.Button(
-        master=gui,
+def select_download_dir():
+    global TB_DESTINATION_PATH
+    download_dir = askdirectory()
+    if TB_DESTINATION_PATH:
+        TB_DESTINATION_PATH['state'] = tk.NORMAL
+        TB_DESTINATION_PATH.delete(0, tk.END)
+        TB_DESTINATION_PATH.insert(0, download_dir)
+        TB_DESTINATION_PATH['state'] = tk.DISABLED
+
+
+def create_root_buttons():
+    global root, BTN_START_DOWNLOAD, BTN_SELECT_DIR
+    BTN_START_DOWNLOAD = tk.Button(
+        master=root,
         text="Start download",
         width=25,
         height=5,
         command=convert_video_to_mp3
     )
-    btn_convert.pack()
+    BTN_SELECT_DIR = tk.Button(
+        master=root,
+        text="Select download directory",
+        width=25,
+        height=5,
+        command=select_download_dir
+    )
+    BTN_START_DOWNLOAD.pack()
+    BTN_SELECT_DIR.pack()
 
 
-def create_gui_textboxes():
-    global tb_url, tb_destination_path
+def create_root_textboxes():
+    global TB_URL, TB_DESTINATION_PATH
     # create url label and textbox
     url_label = tk.Label(text="Youtube Video URL (required)")
-    tb_url = tk.Entry(width=80)
+    TB_URL = tk.Entry(width=80)
     url_label.pack()
-    tb_url.pack()
+    TB_URL.pack()
 
     # create destination label and textbox
     destination_label = tk.Label(text="Destination path (where to download the mp3 file)."
                                       " Leave empty to download mp3 file in current directory")
-    tb_destination_path = tk.Entry(width=80)
+    TB_DESTINATION_PATH = tk.Entry(state=tk.DISABLED, width=80)
     destination_label.pack()
-    tb_destination_path.pack()
+    TB_DESTINATION_PATH.pack()
 
 
 def get_url_from_textbox():
-    return tb_url.get().strip()
+    return TB_URL.get().strip()
 
 
 def get_destination_from_textbox():
-    dest = tb_destination_path.get().strip()
+    dest = TB_DESTINATION_PATH.get().strip()
 
     # if destination textbox is left empty, then just default to current directory of the script
     if dest is '' or dest is None:
         return path.dirname(__file__)
 
-    return tb_destination_path.get()
+    return TB_DESTINATION_PATH.get()
 
 
-def init_tkinter_gui(size):
-    global gui
-    gui = tk.Tk()
-    gui.title = "Youtube to MP3"
-    gui.geometry(size)
-    gui.minsize(575, 220)
-    gui.maxsize(600, 220)
+def init_tkinter_root(size):
+    global root
+    root = tk.Tk()
+    root.title = "Youtube to MP3"
+    root.geometry(size)
+    root.minsize(400, 220)
+    root.maxsize(1000, 600)
+
+    root.grid_rowconfigure(0, weight=1)
+    root.grid_columnconfigure(0, weight=1)
 
     # Code to add widgets:
-    create_gui_textboxes()
-    create_gui_buttons()
+    create_root_textboxes()
+    create_root_buttons()
 
-    gui.mainloop()
+    root.mainloop()
 
 
 def main(size_width=575, size_height=220):
-    init_tkinter_gui(f'{size_width}x{size_height}')
+    init_tkinter_root(f'{size_width}x{size_height}')
 
 
 if __name__ == '__main__':
