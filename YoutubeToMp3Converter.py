@@ -1,3 +1,4 @@
+# from __future__ import unicode_literals
 from os import path
 from tkinter.filedialog import askdirectory
 import youtube_dl
@@ -21,16 +22,20 @@ def get_vid_info(vid_url):
 
 
 def get_video_options(vid_info, vid_dest):
-    vid_name = f'{vid_info["title"]}.mp3'
+    vid_name = f'{vid_info["title"]}.%(ext)s'
+    # below alternative for getting vid name and extension from webpage
+    # of video passed to youtube-dl download function
+    # vid_name = '%(title)s.%(ext)s'
     youtube_dl_options = {
         'format': 'bestaudio/best',
-        'keepvideo': False,
         'outtmpl': path.join(vid_dest, vid_name),
+        'keepvideo': False,
+        # 'prefer_ffmpeg': True, --> optional
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
-            'preferredquality': '192'
-        }]
+            'preferredquality': '192',
+        }],
     }
     return youtube_dl_options
 
