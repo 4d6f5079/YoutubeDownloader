@@ -16,6 +16,7 @@ BTN_DOWNLOAD_FROM_TXT = None
 YOUTUBE_URL_REGEX = re.compile('^(https\:\/\/)?(www\.youtube\.[a-z]{2,4}|youtu\.?be)\/.+$')
 
 
+##################################### UTILITIES #########################
 def read_youtube_urls():
     """
     Required format that the txt file containing the youtube urls must have:
@@ -55,6 +56,7 @@ def select_download_dir():
         TB_DESTINATION_PATH.delete(0, tk.END)
         TB_DESTINATION_PATH.insert(0, download_dir)
         TB_DESTINATION_PATH['state'] = tk.DISABLED
+###########################################################################
 
 
 ########################### THREADS ###################################
@@ -69,7 +71,7 @@ def convert_video_to_mp3():
 #######################################################################
 
 
-##################### YOUTUBE-DL YOUTUBE TO MP3 CONVERSION ############
+##################### YOUTUBE-DL YOUTUBE TO MP3 CONVERSION FOR GETTING VIDEO INFO AND OPTIONS THAT YOUTUBE-DL NEEDS ############
 def get_vid_info(vid_url):
     vid_info = youtube_dl.YoutubeDL().extract_info(
         url=vid_url, download=False
@@ -91,7 +93,7 @@ def get_video_options(vid_dest):
         }],
     }
     return youtube_dl_options
-####################################################################################
+################################################################################################################################
 
 
 ########################################## HANDLING ERROR MESSAGES AND CHECK FOR YOUTUBE URL VALIDITY #####################
