@@ -1,6 +1,6 @@
 # YoutubeToMp3-GUI  
 
-# NOTE: Make sure that ffmpeg exe file is in the same folder as youtube-dl package (python Scripts folder) or if you are using virtualenv then in the Scripts folder of that env folder.
+## NOTE: Make sure that ffmpeg exe file is in the same folder as youtube-dl package (python Scripts folder) or if you are using virtualenv then in the Scripts folder of that env folder.
 
 ## TODOS  
 1. Show the error messages properly with red color and on top of all the other components of the gui  

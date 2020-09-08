@@ -47,39 +47,29 @@ def read_youtube_urls():
     return yt_urls
 
 
-def start_convert_multiple_youtube_to_mp3():
-    try:
-        vids_dest = get_download_destination_path()
-        urls_to_download = read_youtube_urls()
-
-        # only continue when there are urls to download
-        if not urls_to_download:
-            return
-
-        # disable both download btn and btn of download from txt file
-        toggle_download_btns_state()
-
-        vids_options = get_video_options(vids_dest)
-        vids_info = []
-
-        for yt_url in urls_to_download:
-            vids_info.append(get_vid_info(yt_url))
-
-        # start downloading and converting the given youtube videos to mp3
-        with youtube_dl.YoutubeDL(vids_options) as ydl:
-            ydl.download([vid_info['webpage_url'] for vid_info in vids_info])
-
-        toggle_download_btns_state()
-    except Exception as e:
-        show_error_message(str(e))
-        toggle_download_btns_state()
+def select_download_dir():
+    global TB_DESTINATION_PATH
+    download_dir = askdirectory()
+    if TB_DESTINATION_PATH:
+        TB_DESTINATION_PATH['state'] = tk.NORMAL
+        TB_DESTINATION_PATH.delete(0, tk.END)
+        TB_DESTINATION_PATH.insert(0, download_dir)
+        TB_DESTINATION_PATH['state'] = tk.DISABLED
 
 
+########################### THREADS ###################################
 def convert_multiple_youtube_to_mp3():
     t = threading.Thread(target=start_convert_multiple_youtube_to_mp3, args=())
     t.start()
 
 
+def convert_video_to_mp3():
+    t_d = threading.Thread(target=start_download, args=())
+    t_d.start()
+#######################################################################
+
+
+##################### YOUTUBE-DL YOUTUBE TO MP3 CONVERSION ############
 def get_vid_info(vid_url):
     vid_info = youtube_dl.YoutubeDL().extract_info(
         url=vid_url, download=False
@@ -101,8 +91,10 @@ def get_video_options(vid_dest):
         }],
     }
     return youtube_dl_options
+####################################################################################
 
 
+########################################## HANDLING ERROR MESSAGES AND CHECK FOR YOUTUBE URL VALIDITY #####################
 def destory_err_message():
     global ERR_MSG
     if ERR_MSG:
@@ -133,8 +125,10 @@ def url_check(url):
         return False
     else:
         return True
+##############################################################################################
 
 
+########################################## BUTTONS TOGGLES ###################################
 def toggle_download_btns_state():
     global BTN_START_DOWNLOAD, BTN_DOWNLOAD_FROM_TXT
     if BTN_START_DOWNLOAD:
@@ -147,6 +141,35 @@ def toggle_download_btns_state():
             BTN_DOWNLOAD_FROM_TXT['state'] = tk.DISABLED
         else:
             BTN_DOWNLOAD_FROM_TXT['state'] = tk.NORMAL
+
+
+##################################### HANDLE SINGLE URL DOWNLOAD AND MULTIPLE URLS DOWNLOADS LOGIC ###############
+def start_convert_multiple_youtube_to_mp3():
+    try:
+        vids_dest = get_download_destination_path()
+        urls_to_download = read_youtube_urls()
+
+        # only continue when there are urls to download
+        if not urls_to_download:
+            return
+
+        # disable both download btn and btn of download from txt file
+        toggle_download_btns_state()
+
+        vids_options = get_video_options(vids_dest)
+        vids_info = []
+
+        for yt_url in urls_to_download:
+            vids_info.append(get_vid_info(yt_url))
+
+        # start downloading and converting the given youtube videos to mp3
+        with youtube_dl.YoutubeDL(vids_options) as ydl:
+            ydl.download([vid_info['webpage_url'] for vid_info in vids_info])
+
+        toggle_download_btns_state()
+    except Exception as e:
+        show_error_message(str(e))
+        toggle_download_btns_state()
 
 
 def start_download():
@@ -172,23 +195,10 @@ def start_download():
     except Exception as e:
         show_error_message(str(e))
         toggle_download_btns_state()
+##########################################################################################
 
 
-def convert_video_to_mp3():
-    t_d = threading.Thread(target=start_download, args=())
-    t_d.start()
-
-
-def select_download_dir():
-    global TB_DESTINATION_PATH
-    download_dir = askdirectory()
-    if TB_DESTINATION_PATH:
-        TB_DESTINATION_PATH['state'] = tk.NORMAL
-        TB_DESTINATION_PATH.delete(0, tk.END)
-        TB_DESTINATION_PATH.insert(0, download_dir)
-        TB_DESTINATION_PATH['state'] = tk.DISABLED
-
-
+###################################### WIDGETS CREATION (Buttons and Textboxes) #####################
 def create_root_buttons():
     global root, BTN_START_DOWNLOAD, BTN_SELECT_DIR, BTN_DOWNLOAD_FROM_TXT
     BTN_START_DOWNLOAD = tk.Button(
@@ -231,8 +241,10 @@ def create_root_textboxes():
     TB_DESTINATION_PATH = tk.Entry(state=tk.DISABLED, width=80)
     destination_label.pack()
     TB_DESTINATION_PATH.pack()
+###############################################################################################
 
 
+########################################## GETTERS ##########################################
 def get_url_from_textbox():
     return TB_URL.get().strip()
 
@@ -245,14 +257,17 @@ def get_download_destination_path():
         return path.dirname(__file__)
 
     return TB_DESTINATION_PATH.get()
+##############################################################################################
 
 
+########################################## MAIN GUI ##########################################
 def init_tkinter_root(size):
     global root
     root = tk.Tk()
-    root.title = "Youtube to MP3"
+    root.wm_iconbitmap('logo.ico')
+    root.title("Youtube to MP3")
     root.geometry(size)
-    root.minsize(400, 320)
+    root.minsize(400, 350)
     root.maxsize(1000, 600)
 
     root.grid_rowconfigure(0, weight=1)
@@ -265,7 +280,7 @@ def init_tkinter_root(size):
     root.mainloop()
 
 
-def main(size_width=575, size_height=320):
+def main(size_width=575, size_height=350):
     init_tkinter_root(f'{size_width}x{size_height}')
 
 
