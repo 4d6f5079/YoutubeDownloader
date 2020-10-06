@@ -54,6 +54,7 @@ def get_video_options(vid_dest):
         'keepvideo': False,
         'quiet': True,
         'progress_hooks': [show_progress],
+        # 'proxy': 'socks5://127.0.0.1:1080', --> specify proxy
         # 'postprocessor_args': '-hide_banner -loglevel warning',
         'prefer_ffmpeg': True, # --> optional
         'postprocessors': [{
