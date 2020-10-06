@@ -1,1 +1,2 @@
 youtube_dl==latest
+cx_Freeze==6.2
