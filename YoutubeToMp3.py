@@ -15,6 +15,7 @@ ERR_MSG = None
 PROGRESS_BAR = None
 YOUTUBE_URL_REGEX = re.compile('^(https\:\/\/)?(www\.youtube\.[a-z]{2,4}|youtu\.?be)\/.+$')
 DESKTOP_PATH = path.join(path.join(environ['USERPROFILE']), 'Desktop')
+threads = []
 
 ##################################### UTILITIES #########################
 def select_download_dir():
@@ -30,14 +31,16 @@ def select_download_dir():
 
 ########################### THREADS ###################################
 def convert_video_to_mp3():
+    global threads
     t_d = threading.Thread(target=start_download, args=())
     t_d.start()
+    threads.append(t_d)
 #######################################################################
 
 
 ##################### YOUTUBE-DL YOUTUBE TO MP3 CONVERSION FOR GETTING VIDEO INFO AND OPTIONS THAT YOUTUBE-DL NEEDS ############
 def get_vid_info(vid_url):
-    vid_info = youtube_dl.YoutubeDL().extract_info(
+    vid_info = youtube_dl.YoutubeDL({'quiet': True}).extract_info(
         url=vid_url, download=False
     )
     return vid_info
@@ -49,8 +52,10 @@ def get_video_options(vid_dest):
         'format': 'bestaudio/best',
         'outtmpl': path.join(vid_dest, vid_name),
         'keepvideo': False,
+        'quiet': True,
         'progress_hooks': [show_progress],
-        # 'prefer_ffmpeg': True, --> optional
+        # 'postprocessor_args': '-hide_banner -loglevel warning',
+        'prefer_ffmpeg': True, # --> optional
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
@@ -73,18 +78,12 @@ def show_progress(data):
         PROGRESS_BAR.place(x=125, y=175)
 
         if data['status'] == 'finished':
-            mp3_file_name = path.split(path.abspath(data['filename']))
             PROGRESS_BAR['value'] = 0
-            show_info_message(
-                'THE MP3 FILE HAS BEEN DOWNLOADED SUCCESSFULLY!',
-                f'MP3 file {mp3_file_name} downloaded successfully!'
-                f'\n MP3 file is downloaded on the DESKTOP.'
-            )
+
         if data['status'] == 'downloading':
             p = data['_percent_str']
-            p = p.replace('%', '').strip()
+            p = p.replace('%', '')
             PROGRESS_BAR['value'] = float(p)
-            print(data['filename'], data['_percent_str'], data['_eta_str'])
 
     except Exception as e:
         show_error_message(str(e))
@@ -166,6 +165,12 @@ def start_download():
 
         toggle_download_btns_state()
 
+        show_info_message(
+            'THE MP3 FILE HAS BEEN DOWNLOADED SUCCESSFULLY!',
+            f'MP3 file {vid_info["title"]} downloaded successfully!'
+            f'\n MP3 file is downloaded on the DESKTOP.'
+        )
+
     except Exception as e:
         show_error_message(str(e))
         toggle_download_btns_state()
@@ -218,11 +223,24 @@ def get_download_destination_path():
     return TB_DESTINATION_PATH.get()
 ##############################################################################################
 
+#################################### HANDLE CLOSING OF TKINTER WINDOW #############################################
+def exit_handler():
+    global threads, root
+    for t in threads:
+        if not t.is_alive():
+            t.handled = True
+        else:
+            t.handled = False
+    threads = [t for t in threads if not t.handled]
+    if not threads:
+        root.destroy()
+##############################################################################################
 
 ########################################## MAIN GUI ##########################################
 def init_tkinter_root(size):
     global root
     root = tk.Tk()
+    root.protocol("WM_DELETE_WINDOW", exit_handler)
     root.wm_iconbitmap('logo.ico')
     root.title("Youtube to MP3")
     root.geometry(size)
