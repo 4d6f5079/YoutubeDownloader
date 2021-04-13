@@ -1,8 +1,10 @@
 from os import path
 from tkinter.filedialog import askdirectory, askopenfile
+from tkinter.ttk import Progressbar
 import threading
-from tkinter import StringVar
+from tkinter import StringVar, Menu, messagebox
 import youtube_dl
+import traceback
 import tkinter as tk
 import re
 
@@ -10,11 +12,40 @@ root = None
 TB_URL = None
 TB_DESTINATION_PATH = None
 BTN_START_DOWNLOAD = None
-ERR_MSG = None
 BTN_SELECT_DIR = None
 BTN_DOWNLOAD_FROM_TXT = None
+RIGHT_CLICK_MENU = None
+PROGRESS_BAR = None
+CURRENT_SCRIPT_PATH = path.abspath(path.dirname(__file__))
+
+threads = []
 YOUTUBE_URL_REGEX = re.compile('^(https\:\/\/)?(www\.youtube\.[a-z]{2,4}|youtu\.?be)\/.+$')
 
+################################# PROGRESS BAR ##################################################################
+
+def show_progress(data):
+    global root, PROGRESS_BAR
+
+    try:
+        # creating progress bar
+        PROGRESS_BAR = Progressbar(root, length=250, s='black.Horizontal.TProgressbar')
+        PROGRESS_BAR['value'] = 0
+        PROGRESS_BAR.place(x=125, y=175)
+
+        if data['status'] == 'finished':
+            PROGRESS_BAR['value'] = 100
+
+
+        if data['status'] == 'downloading':
+            p = data['_percent_str']
+            p = p.replace('%', '')
+            PROGRESS_BAR['value'] = float(p)
+
+    except Exception:
+        show_error_message('In show_progress: ' + traceback.format_exc())
+        PROGRESS_BAR.destroy()
+
+###################################################################################################
 
 ##################################### UTILITIES #########################
 def read_youtube_urls():
@@ -63,13 +94,21 @@ def select_download_dir():
 def convert_multiple_youtube_to_mp3():
     t = threading.Thread(target=start_convert_multiple_youtube_to_mp3, args=())
     t.start()
+    threads.append(t)
 
 
 def convert_video_to_mp3():
     t_d = threading.Thread(target=start_download, args=())
     t_d.start()
+    threads.append(t_d)
 #######################################################################
 
+################################## PROXY GETTER HELPER $##########################
+def get_proxy():
+    # TODO: get random proxy that is safe, trusted and working
+    # Example: 'socks5://127.0.0.1:1080'
+    return None
+##################################################################################
 
 ##################### YOUTUBE-DL YOUTUBE TO MP3 CONVERSION FOR GETTING VIDEO INFO AND OPTIONS THAT YOUTUBE-DL NEEDS ############
 def get_vid_info(vid_url):
@@ -79,48 +118,48 @@ def get_vid_info(vid_url):
     return vid_info
 
 
-def get_video_options(vid_dest):
+def get_video_options(vid_dest, use_proxy=False):
     vid_name = '%(title)s.%(ext)s'
     youtube_dl_options = {
         'format': 'bestaudio/best',
         'outtmpl': path.join(vid_dest, vid_name),
+        'progress_hooks': [show_progress],
         'keepvideo': False,
-        # 'prefer_ffmpeg': True, --> optional
+        'quiet': True,
+        # 'prefer_ffmpeg': True, # --> optional
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
     }
+
+    if use_proxy:
+        proxy = get_proxy()
+        if proxy:
+            youtube_dl_options['proxy'] = proxy
+
     return youtube_dl_options
 ################################################################################################################################
 
 
 ########################################## HANDLING ERROR MESSAGES AND CHECK FOR YOUTUBE URL VALIDITY #####################
-def destory_err_message():
-    global ERR_MSG
-    if ERR_MSG:
-        ERR_MSG.destroy()
+def show_info_message(msg, title='Information'):
+    global root
+    root.wm_withdraw()  # to hide the main window
+    messagebox.showinfo(title, msg)
 
-
-def show_error_message(msg="Please provide a youtube URL."):
-    global root, ERR_MSG
-    str_var = StringVar()
-    ERR_MSG = tk.Label(master=root, textvariable=str_var, relief=tk.RAISED, bg='black')
-    str_var.set(msg)
-    ERR_MSG.configure(state=tk.DISABLED)
-    ERR_MSG.place(relx=0.0, rely=1.0, anchor='sw')
-    # ERR_MSG.place(relx=1.0, rely=1.0, anchor='se')
-    # ERR_MSG.pack()
-
+def show_error_message(msg, title='Error'):
+    global root
+    root.wm_withdraw()  # to hide the main window
+    messagebox.showerror(title, msg)
 
 def url_check(url):
-    destory_err_message()
-    if url is "":
-        show_error_message()
+    if url == "":
+        show_error_message('Youtube URL not provided!')
         return False
     elif url is None:
-        show_error_message()
+        show_error_message('Unknown Youtube URL!')
         return False
     elif not YOUTUBE_URL_REGEX.findall(url):
         show_error_message("Please provide a valid Youtube URL!")
@@ -169,8 +208,14 @@ def start_convert_multiple_youtube_to_mp3():
             ydl.download([vid_info['webpage_url'] for vid_info in vids_info])
 
         toggle_download_btns_state()
+        
+        show_info_message(
+            f'MP3 files downloaded successfully!',
+            'THE MP3 FILES HAVE BEEN DOWNLOADED SUCCESSFULLY!'
+        )
+
     except Exception as e:
-        show_error_message(str(e))
+        show_error_message(traceback.format_exc())
         toggle_download_btns_state()
 
 
@@ -190,12 +235,18 @@ def start_download():
         # start download
         with youtube_dl.YoutubeDL(vid_options) as ydl:
             ydl.download([
-               vid_info['webpage_url']
+                vid_info['webpage_url']
             ])
 
         toggle_download_btns_state()
+
+        show_info_message(
+            f'MP3 file {vid_info["title"]} downloaded successfully!',
+            'THE MP3 FILE HAS BEEN DOWNLOADED SUCCESSFULLY!'
+        )
+
     except Exception as e:
-        show_error_message(str(e))
+        show_error_message('In start_download: ' + traceback.format_exc())
         toggle_download_btns_state()
 ##########################################################################################
 
@@ -238,9 +289,13 @@ def create_root_textboxes():
     TB_URL.pack()
 
     # create destination label and textbox
-    destination_label = tk.Label(text="Destination path (where to download the mp3 file)."
-                                      " Leave empty to download mp3 file in current directory")
-    TB_DESTINATION_PATH = tk.Entry(state=tk.DISABLED, width=80)
+    destination_label = tk.Label(text="Destination path (where to download the mp3 file).")
+    TB_DESTINATION_PATH = tk.Entry(state=tk.NORMAL, width=80)
+
+    # insert current directory for the user for convinience
+    TB_DESTINATION_PATH.insert(0, CURRENT_SCRIPT_PATH)
+    TB_DESTINATION_PATH['state'] = tk.DISABLED
+
     destination_label.pack()
     TB_DESTINATION_PATH.pack()
 ###############################################################################################
@@ -255,10 +310,44 @@ def get_download_destination_path():
     dest = TB_DESTINATION_PATH.get().strip()
 
     # if destination textbox is left empty, then just default to current directory of the script
-    if dest is '' or dest is None:
-        return path.dirname(__file__)
+    if dest == '' or dest is None:
+        return CURRENT_SCRIPT_PATH
 
     return TB_DESTINATION_PATH.get()
+##############################################################################################
+
+
+########################################## SHOW RIGHT CLICK MENU ###############################
+def right_click_menu():
+    global root, RIGHT_CLICK_MENU
+    if root:
+        RIGHT_CLICK_MENU = Menu(root, tearoff=0)
+        RIGHT_CLICK_MENU.add_command(label="Cut", command=lambda: root.focus_get().event_generate('<<Cut>>'))
+        RIGHT_CLICK_MENU.add_command(label="Copy", command=lambda: root.focus_get().event_generate('<<Copy>>'))
+        RIGHT_CLICK_MENU.add_command(label="Paste", command=lambda: root.focus_get().event_generate('<<Paste>>'))
+        root.bind("<Button-3>", right_click_handler)
+
+
+def right_click_handler(event):
+    global RIGHT_CLICK_MENU
+    try:
+        RIGHT_CLICK_MENU.tk_popup(event.x_root, event.y_root)
+    finally:
+        RIGHT_CLICK_MENU.grab_release()
+##############################################################################################
+
+
+#################################### HANDLE CLOSING OF TKINTER WINDOW ######################
+def exit_handler():
+    global threads, root
+    for t in threads:
+        if not t.is_alive():
+            t.handled = True
+        else:
+            t.handled = False
+    threads = [t for t in threads if not t.handled]
+    if not threads:
+        root.destroy()
 ##############################################################################################
 
 
@@ -266,6 +355,7 @@ def get_download_destination_path():
 def init_tkinter_root(size):
     global root
     root = tk.Tk()
+    root.protocol("WM_DELETE_WINDOW", exit_handler)
     root.wm_iconbitmap('logo.ico')
     root.title("Youtube to MP3")
     root.geometry(size)
@@ -278,6 +368,7 @@ def init_tkinter_root(size):
     # Add widgets
     create_root_textboxes()
     create_root_buttons()
+    right_click_menu()
 
     root.mainloop()
 

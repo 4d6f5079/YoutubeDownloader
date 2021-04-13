@@ -1,2 +1,2 @@
-youtube_dl==latest
+youtube_dl==2020.9.20
 cx_Freeze==6.2

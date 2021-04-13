@@ -2,7 +2,7 @@ from os import path, environ
 from tkinter.filedialog import askdirectory
 from tkinter.ttk import Progressbar
 import threading
-from tkinter import messagebox, Tk
+from tkinter import messagebox, Tk, Menu
 import youtube_dl
 import tkinter as tk
 import re
@@ -13,9 +13,12 @@ TB_DESTINATION_PATH = None
 BTN_START_DOWNLOAD = None
 ERR_MSG = None
 PROGRESS_BAR = None
-YOUTUBE_URL_REGEX = re.compile('^(https\:\/\/)?(www\.youtube\.[a-z]{2,4}|youtu\.?be)\/.+$')
+RIGHT_CLICK_MENU = None
+YOUTUBE_URL_REGEX = re.compile('^(https\:\/\/)?(www\.youtube\.[a-z]{2,4}|youtu\.?be)\/.+[_]*$')
 DESKTOP_PATH = path.join(path.join(environ['USERPROFILE']), 'Desktop')
+
 threads = []
+proxy = 'socks5://176.9.75.42:1080'
 
 ##################################### UTILITIES #########################
 def select_download_dir():
@@ -46,7 +49,7 @@ def get_vid_info(vid_url):
     return vid_info
 
 
-def get_video_options(vid_dest):
+def get_video_options(vid_dest, proxy=None):
     vid_name = '%(title)s.%(ext)s'
     youtube_dl_options = {
         'format': 'bestaudio/best',
@@ -61,8 +64,10 @@ def get_video_options(vid_dest):
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': '192',
-        }],
+        }]
     }
+    if proxy:
+        youtube_dl_options['proxy'] = proxy
     return youtube_dl_options
 ################################################################################################################################
 
@@ -127,6 +132,26 @@ def url_check(url):
 ##############################################################################################
 
 
+########################################## SHOW RIGHT CLICK MENU ###################################
+def right_click_menu():
+    global root, RIGHT_CLICK_MENU
+    if root:
+        RIGHT_CLICK_MENU = Menu(root, tearoff=0)
+        RIGHT_CLICK_MENU.add_command(label="Cut", command=lambda: root.focus_get().event_generate('<<Cut>>'))
+        RIGHT_CLICK_MENU.add_command(label="Copy", command=lambda: root.focus_get().event_generate('<<Copy>>'))
+        RIGHT_CLICK_MENU.add_command(label="Paste", command=lambda: root.focus_get().event_generate('<<Paste>>'))
+        root.bind("<Button-3>", right_click_handler)
+
+
+def right_click_handler(event):
+    global RIGHT_CLICK_MENU
+    try:
+        RIGHT_CLICK_MENU.tk_popup(event.x_root, event.y_root)
+    finally:
+        RIGHT_CLICK_MENU.grab_release()
+##############################################################################################
+
+
 ########################################## BUTTONS TOGGLES ###################################
 def toggle_download_btns_state():
     global BTN_START_DOWNLOAD
@@ -138,7 +163,27 @@ def toggle_download_btns_state():
 
 
 ##################################### HANDLE SINGLE URL DOWNLOAD AND MULTIPLE URLS DOWNLOADS LOGIC ###############
+def youtube_dl_download(vid_info, vid_dest, with_proxy=False, retries=0):
+    global proxy
+
+    if with_proxy:
+        vid_options = get_video_options(vid_dest, proxy=proxy)
+    else:
+        vid_options = get_video_options(vid_dest)
+
+    try:
+        with youtube_dl.YoutubeDL(vid_options) as ydl:
+            ydl.download([
+                vid_info['webpage_url']
+            ])
+    except Exception as e:
+        print(str(e))
+        # if retries <= 3:
+        #     youtube_dl_download(vid_info, vid_dest, with_proxy=True, retries=retries+1)
+
+
 def start_download():
+    global proxy
     try:
         vid_url = get_url_from_textbox()
         vid_dest = get_download_destination_path()
@@ -156,13 +201,10 @@ def start_download():
         )
 
         vid_info = get_vid_info(vid_url)
-        vid_options = get_video_options(vid_dest)
 
         # start download
-        with youtube_dl.YoutubeDL(vid_options) as ydl:
-            ydl.download([
-               vid_info['webpage_url']
-            ])
+        # TODO: test this new functionality
+        youtube_dl_download(vid_info, vid_dest)
 
         toggle_download_btns_state()
 
@@ -180,7 +222,7 @@ def start_download():
 
 ###################################### WIDGETS CREATION (Buttons and Textboxes) #####################
 def create_root_buttons():
-    global root, BTN_START_DOWNLOAD, BTN_SELECT_DIR
+    global root, BTN_START_DOWNLOAD
     BTN_START_DOWNLOAD = tk.Button(
         master=root,
         text="Start download",
@@ -224,6 +266,7 @@ def get_download_destination_path():
     return TB_DESTINATION_PATH.get()
 ##############################################################################################
 
+
 #################################### HANDLE CLOSING OF TKINTER WINDOW #############################################
 def exit_handler():
     global threads, root
@@ -236,6 +279,7 @@ def exit_handler():
     if not threads:
         root.destroy()
 ##############################################################################################
+
 
 ########################################## MAIN GUI ##########################################
 def init_tkinter_root(size):
@@ -254,6 +298,7 @@ def init_tkinter_root(size):
     # Add widgets
     create_root_textboxes()
     create_root_buttons()
+    right_click_menu()
 
     root.mainloop()
 
