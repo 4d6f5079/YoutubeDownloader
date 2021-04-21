@@ -4,9 +4,14 @@ from tkinter.ttk import Progressbar
 import threading
 from tkinter import StringVar, Menu, messagebox
 import youtube_dl
-import traceback
 import tkinter as tk
 import re
+
+import logging
+logging.basicConfig(
+    filename='logs.log',
+    level=logging.DEBUG
+)
 
 root = None
 TB_URL = None
@@ -15,16 +20,20 @@ BTN_START_DOWNLOAD = None
 BTN_SELECT_DIR = None
 BTN_DOWNLOAD_FROM_TXT = None
 RIGHT_CLICK_MENU = None
-PROGRESS_BAR = None
 CURRENT_SCRIPT_PATH = path.abspath(path.dirname(__file__))
+UNEXPCTED_ERR_MSG = 'Unexpected error occured. Please check logs for more info.'
 
 threads = []
-YOUTUBE_URL_REGEX = re.compile('^(https\:\/\/)?(www\.youtube\.[a-z]{2,4}|youtu\.?be)\/.+$')
+
+# this regex matches youtube urls with optional 'www.' behind 'youtube'
+# alternative complicated regex: ^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)([\w\-]+)(\S+)?$
+YOUTUBE_URL_REGEX = re.compile('^(https?\:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$')
+YOUTUBE_PLAYLIST_URL_REGEX = re.compile('^(https|http):\/\/(?:www\.)?youtube\.com\/watch\?(?:&.*)*((?:v=([a-zA-Z0-9_\-]{11})(?:&.*)*&list=([a-zA-Z0-9_\-]{18}))(?:list=([a-zA-Z0-9_\-]{18})(?:&.*)*&v=([a-zA-Z0-9_\-]{11})))(?:&.*)*(?:\#.*)*$')
 
 ################################# PROGRESS BAR ##################################################################
 
 def show_progress(data):
-    global root, PROGRESS_BAR
+    global root
 
     try:
         # creating progress bar
@@ -34,7 +43,7 @@ def show_progress(data):
 
         if data['status'] == 'finished':
             PROGRESS_BAR['value'] = 100
-
+            PROGRESS_BAR.destroy()
 
         if data['status'] == 'downloading':
             p = data['_percent_str']
@@ -42,7 +51,8 @@ def show_progress(data):
             PROGRESS_BAR['value'] = float(p)
 
     except Exception:
-        show_error_message('In show_progress: ' + traceback.format_exc())
+        show_error_message(UNEXPCTED_ERR_MSG)
+        logging.exception(UNEXPCTED_ERR_MSG)
         PROGRESS_BAR.destroy()
 
 ###################################################################################################
@@ -112,9 +122,10 @@ def get_proxy():
 
 ##################### YOUTUBE-DL YOUTUBE TO MP3 CONVERSION FOR GETTING VIDEO INFO AND OPTIONS THAT YOUTUBE-DL NEEDS ############
 def get_vid_info(vid_url):
-    vid_info = youtube_dl.YoutubeDL().extract_info(
-        url=vid_url, download=False
-    )
+    with youtube_dl.YoutubeDL() as ydl:
+        vid_info = ydl.extract_info(
+            url=vid_url, download=False
+        )
     return vid_info
 
 
@@ -145,13 +156,9 @@ def get_video_options(vid_dest, use_proxy=False):
 
 ########################################## HANDLING ERROR MESSAGES AND CHECK FOR YOUTUBE URL VALIDITY #####################
 def show_info_message(msg, title='Information'):
-    global root
-    root.wm_withdraw()  # to hide the main window
     messagebox.showinfo(title, msg)
 
 def show_error_message(msg, title='Error'):
-    global root
-    root.wm_withdraw()  # to hide the main window
     messagebox.showerror(title, msg)
 
 def url_check(url):
@@ -215,7 +222,8 @@ def start_convert_multiple_youtube_to_mp3():
         )
 
     except Exception as e:
-        show_error_message(traceback.format_exc())
+        show_error_message(UNEXPCTED_ERR_MSG)
+        logging.exception(UNEXPCTED_ERR_MSG)
         toggle_download_btns_state()
 
 
@@ -232,11 +240,30 @@ def start_download():
         vid_info = get_vid_info(vid_url)
         vid_options = get_video_options(vid_dest)
 
-        # start download
+        # start download 1 video
         with youtube_dl.YoutubeDL(vid_options) as ydl:
             ydl.download([
                 vid_info['webpage_url']
             ])
+        ############################################################################
+        # TODO: example download playlist list or list of videos
+        # with ydl:
+        # result = ydl.extract_info(
+        #     'http://www.youtube.com/watch?v=BaW_jenozKc',
+        #     download=False # We just want to extract the info
+        # )
+
+        # if 'entries' in result:
+        #     # Can be a playlist or a list of videos
+        #     video = result['entries'][0]
+        # else:
+        #     # Just a video
+        #     video = result
+
+        # print(video)
+        # video_url = video['url']
+        # print(video_url)
+        ############################################################################
 
         toggle_download_btns_state()
 
@@ -246,7 +273,8 @@ def start_download():
         )
 
     except Exception as e:
-        show_error_message('In start_download: ' + traceback.format_exc())
+        show_error_message(UNEXPCTED_ERR_MSG)
+        logging.exception(UNEXPCTED_ERR_MSG)
         toggle_download_btns_state()
 ##########################################################################################
 

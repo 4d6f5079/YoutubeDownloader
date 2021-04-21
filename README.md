@@ -6,6 +6,7 @@
 1. Correctly align progress bar
 2. add playlist download functionality
 3. add proxy functionality for when normal download fails
+4. Add exceptions logger
 
 
 ## TODOS  
