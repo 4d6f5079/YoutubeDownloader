@@ -3,11 +3,12 @@
 ## NOTE: Make sure that ffmpeg exe file is in the same folder as youtube-dl package (python Scripts folder) or if you are using virtualenv then in the Scripts folder of that env folder.
 
 ## IMPORTANT TODOS  
-1. Correctly align progress bar
+1. Correctly align progress bar in new tkinter window - DONE
 2. add playlist download functionality
-3. add proxy functionality for when normal download fails
-4. Add exceptions logger
+3. make it optional to also be able to download via TOR network - DONE  
+4. Add exceptions logger - DONE
 
+## NOTE 2: To be able to download via TOR network you have to have downloaded and started the Tor Windows Expert Bundle = https://www.torproject.org/download/tor/ 
 
 ## TODOS  
 1. Show the error messages properly with red color and on top of all the other components of the gui  

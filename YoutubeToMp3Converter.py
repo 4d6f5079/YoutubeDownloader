@@ -6,11 +6,17 @@ from tkinter import StringVar, Menu, messagebox
 import youtube_dl
 import tkinter as tk
 import re
+import random
+import requests
+from stem import Signal
+from stem.control import Controller
 
 import logging
 logging.basicConfig(
     filename='logs.log',
-    level=logging.DEBUG
+    level=logging.DEBUG,
+    format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
 )
 
 root = None
@@ -20,6 +26,11 @@ BTN_START_DOWNLOAD = None
 BTN_SELECT_DIR = None
 BTN_DOWNLOAD_FROM_TXT = None
 RIGHT_CLICK_MENU = None
+PROXY_BUTTON = None
+USING_PROXY = False
+TOR_PROXY_CHECKED = False
+TOPLEVEL_WINDOW = None
+USERAGENTS_FILEPATH = './useragents.txt'
 CURRENT_SCRIPT_PATH = path.abspath(path.dirname(__file__))
 UNEXPCTED_ERR_MSG = 'Unexpected error occured. Please check logs for more info.'
 
@@ -31,30 +42,41 @@ YOUTUBE_URL_REGEX = re.compile('^(https?\:\/\/)?(www\.)?(youtube\.com|youtu\.?be
 YOUTUBE_PLAYLIST_URL_REGEX = re.compile('^(https|http):\/\/(?:www\.)?youtube\.com\/watch\?(?:&.*)*((?:v=([a-zA-Z0-9_\-]{11})(?:&.*)*&list=([a-zA-Z0-9_\-]{18}))(?:list=([a-zA-Z0-9_\-]{18})(?:&.*)*&v=([a-zA-Z0-9_\-]{11})))(?:&.*)*(?:\#.*)*$')
 
 ################################# PROGRESS BAR ##################################################################
+def create_toplevel_tk_window():
+    global root, TOPLEVEL_WINDOW
+
+    newWindow = tk.Toplevel(root)
+    newWindow.title("Downloading...")
+    newWindow.geometry("275x100")
+
+    TOPLEVEL_WINDOW = newWindow
 
 def show_progress(data):
-    global root
-
+    global TOPLEVEL_WINDOW
+    
     try:
         # creating progress bar
-        PROGRESS_BAR = Progressbar(root, length=250, s='black.Horizontal.TProgressbar')
-        PROGRESS_BAR['value'] = 0
-        PROGRESS_BAR.place(x=125, y=175)
+        progress_bar = Progressbar(TOPLEVEL_WINDOW, length=250, s='black.Horizontal.TProgressbar')
+        progress_bar['value'] = 0
+        progress_bar.place(x=10, y=25)
 
         if data['status'] == 'finished':
-            PROGRESS_BAR['value'] = 100
-            PROGRESS_BAR.destroy()
+            progress_bar['value'] = 100
+            progress_bar.destroy()
+            TOPLEVEL_WINDOW.destroy()
+            TOPLEVEL_WINDOW = None
 
         if data['status'] == 'downloading':
             p = data['_percent_str']
             p = p.replace('%', '')
-            PROGRESS_BAR['value'] = float(p)
+            progress_bar['value'] = float(p)
 
     except Exception:
         show_error_message(UNEXPCTED_ERR_MSG)
         logging.exception(UNEXPCTED_ERR_MSG)
-        PROGRESS_BAR.destroy()
-
+        progress_bar.destroy()
+        TOPLEVEL_WINDOW.destroy()
+        TOPLEVEL_WINDOW = None
 ###################################################################################################
 
 ##################################### UTILITIES #########################
@@ -92,7 +114,7 @@ def read_youtube_urls():
 def select_download_dir():
     global TB_DESTINATION_PATH
     download_dir = askdirectory()
-    if TB_DESTINATION_PATH:
+    if TB_DESTINATION_PATH and download_dir:
         TB_DESTINATION_PATH['state'] = tk.NORMAL
         TB_DESTINATION_PATH.delete(0, tk.END)
         TB_DESTINATION_PATH.insert(0, download_dir)
@@ -113,11 +135,50 @@ def convert_video_to_mp3():
     threads.append(t_d)
 #######################################################################
 
-################################## PROXY GETTER HELPER $##########################
+################################## PROXY STUFF $##########################
+# def get_random_ua():
+#     # if file can be loaded in memory use: random.choice(open("useragents.txt").readlines())
+#     # Waterman's "Reservoir Algorithm" to get 1 line from file randomly in memory efficient way
+#     with open('useragents.txt') as f:
+#         line = next(f)
+#         for num, aline in enumerate(f, 2):
+#             if random.randrange(num):
+#                 continue
+#             line = aline
+#         return line
+
+def get_tor_session():
+    # initialize a requests Session
+    session = requests.Session()
+    # setting the proxy of both http & https to the localhost:9050 
+    # this requires a running Tor service in your machine and listening on port 9050 (by default)
+    session.proxies = {"http": "socks5://localhost:9050", "https": "socks5://localhost:9050"}
+    return session
+
+def renew_tor_connection():
+    logging.debug('CHANGING IP ...')
+    with Controller.from_port(port=9051) as c:
+        c.authenticate()
+        # send NEWNYM signal to establish a new clean connection through the Tor network
+        c.signal(Signal.NEWNYM)
+    logging.debug('IP CHANGED!')
+
+def test_tor_proxy_connection():
+    try:
+        ip_test = requests.get('http://httpbin.org/ip').json()
+        renew_tor_connection()
+        tor_ip_test = requests.Session().get('http://httpbin.org/ip', proxies={ 'http': 'socks5://127.0.0.1:9050' }).json()
+        if ip_test != tor_ip_test:
+            show_info_message(f'Testing TOR Proxy\nYour IP:\n{ip_test}\nTor IP:\n{tor_ip_test}\nTor IP working correctly!')
+        else:
+            show_info_message('Your IP and Tor IP are the same: check you are running tor from commandline')
+    except Exception:
+        show_error_message(UNEXPCTED_ERR_MSG)
+        logging.error(UNEXPCTED_ERR_MSG)
+
 def get_proxy():
-    # TODO: get random proxy that is safe, trusted and working
-    # Example: 'socks5://127.0.0.1:1080'
-    return None
+    # TODO: get random proxy if tor is not working
+    return 'socks5://127.0.0.1:9050'
 ##################################################################################
 
 ##################### YOUTUBE-DL YOUTUBE TO MP3 CONVERSION FOR GETTING VIDEO INFO AND OPTIONS THAT YOUTUBE-DL NEEDS ############
@@ -129,7 +190,9 @@ def get_vid_info(vid_url):
     return vid_info
 
 
-def get_video_options(vid_dest, use_proxy=False):
+def get_video_options(vid_dest):
+    global USING_PROXY
+
     vid_name = '%(title)s.%(ext)s'
     youtube_dl_options = {
         'format': 'bestaudio/best',
@@ -145,10 +208,11 @@ def get_video_options(vid_dest, use_proxy=False):
         }],
     }
 
-    if use_proxy:
+    if USING_PROXY:
         proxy = get_proxy()
         if proxy:
             youtube_dl_options['proxy'] = proxy
+            youtube_dl_options['nocheckcertificate'] = True
 
     return youtube_dl_options
 ################################################################################################################################
@@ -212,7 +276,10 @@ def start_convert_multiple_youtube_to_mp3():
 
         # start downloading and converting the given youtube videos to mp3
         with youtube_dl.YoutubeDL(vids_options) as ydl:
-            ydl.download([vid_info['webpage_url'] for vid_info in vids_info])
+            for vid_info in vids_info:
+                # create toplevel window to show download progress for each download
+                create_toplevel_tk_window()
+                ydl.download([vid_info['webpage_url']])
 
         toggle_download_btns_state()
         
@@ -240,11 +307,15 @@ def start_download():
         vid_info = get_vid_info(vid_url)
         vid_options = get_video_options(vid_dest)
 
+        # create toplevel window to show download progress
+        create_toplevel_tk_window()
+
         # start download 1 video
         with youtube_dl.YoutubeDL(vid_options) as ydl:
             ydl.download([
                 vid_info['webpage_url']
             ])
+            
         ############################################################################
         # TODO: example download playlist list or list of videos
         # with ydl:
@@ -276,12 +347,30 @@ def start_download():
         show_error_message(UNEXPCTED_ERR_MSG)
         logging.exception(UNEXPCTED_ERR_MSG)
         toggle_download_btns_state()
+    
+def handle_proxy_btn():
+    global PROXY_BUTTON, USING_PROXY, TOR_PROXY_CHECKED
+    if PROXY_BUTTON:
+        if PROXY_BUTTON.config('text')[-1] == 'Currently not using proxy':
+            PROXY_BUTTON.config(text='Currently using TOR proxy')
+            USING_PROXY = True
+            if not TOR_PROXY_CHECKED: # check TOR connection ONCE
+                TOR_PROXY_CHECKED = True
+                test_tor_proxy_connection()
+        else:
+            PROXY_BUTTON.config(text='Currently not using proxy')
+            USING_PROXY = False
 ##########################################################################################
 
 
 ###################################### WIDGETS CREATION (Buttons and Textboxes) #####################
 def create_root_buttons():
-    global root, BTN_START_DOWNLOAD, BTN_SELECT_DIR, BTN_DOWNLOAD_FROM_TXT
+    global root, BTN_START_DOWNLOAD, BTN_SELECT_DIR, BTN_DOWNLOAD_FROM_TXT, PROXY_BUTTON
+    PROXY_BUTTON = tk.Button(
+        master=root,
+        text="Currently not using proxy",
+        command=handle_proxy_btn
+    )
     BTN_START_DOWNLOAD = tk.Button(
         master=root,
         text="Start download",
@@ -303,9 +392,10 @@ def create_root_buttons():
         height=5,
         command=convert_multiple_youtube_to_mp3
     )
-    BTN_START_DOWNLOAD.pack()
-    BTN_SELECT_DIR.pack()
-    BTN_DOWNLOAD_FROM_TXT.pack()
+    BTN_START_DOWNLOAD.pack(pady=5)
+    BTN_SELECT_DIR.pack(pady=5)
+    BTN_DOWNLOAD_FROM_TXT.pack(pady=5)
+    PROXY_BUTTON.pack(pady=5)
 
 
 def create_root_textboxes():
@@ -401,7 +491,7 @@ def init_tkinter_root(size):
     root.mainloop()
 
 
-def main(size_width=575, size_height=350):
+def main(size_width=575, size_height=400):
     init_tkinter_root(f'{size_width}x{size_height}')
 
 
