@@ -39,7 +39,7 @@ threads = []
 # this regex matches youtube urls with optional 'www.' behind 'youtube'
 # alternative complicated regex: ^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)([\w\-]+)(\S+)?$
 YOUTUBE_URL_REGEX = re.compile('^(https?\:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$')
-YOUTUBE_PLAYLIST_URL_REGEX = re.compile('^(https|http):\/\/(?:www\.)?youtube\.com\/watch\?(?:&.*)*((?:v=([a-zA-Z0-9_\-]{11})(?:&.*)*&list=([a-zA-Z0-9_\-]{18}))(?:list=([a-zA-Z0-9_\-]{18})(?:&.*)*&v=([a-zA-Z0-9_\-]{11})))(?:&.*)*(?:\#.*)*$')
+YOUTUBE_PLAYLIST_URL_REGEX = re.compile('^(?:https?:\/\/)?(?:www\.)?youtu\.?be(?:\.com)?.*?(?:v|list)=(.*?)(?:&|$)|^(?:https?:\/\/)?(?:www\.)?youtu\.?be(?:\.com)?(?:(?!=).)*\/(.*)$')
 
 ################################# PROGRESS BAR ##################################################################
 def create_toplevel_tk_window(label_text=None):
@@ -301,6 +301,7 @@ def start_convert_multiple_youtube_to_mp3():
 
 
 def start_download():
+    global TOPLEVEL_WINDOW
     try:
         vid_url = get_url_from_textbox()
         vid_dest = get_download_destination_path()
@@ -310,34 +311,35 @@ def start_download():
 
         toggle_download_btns_state()
 
-        is_playlist_link = YOUTUBE_PLAYLIST_URL_REGEX.findall(vid_url)
-        if is_playlist_link:
+        is_playlist = YOUTUBE_PLAYLIST_URL_REGEX.findall(vid_url)
+
+        if is_playlist:
             vids_options = get_video_options(vid_dest, progress_bar=False)
         else:
             vids_options = get_video_options(vid_dest)
-
         vids_info = get_vid_info(vid_url)
 
         # if link is of a playlist, then just download each video in the playlist. Otherwise its not a playlist and download 1 video
-        if is_playlist_link:
-            with youtube_dl.YoutubeDL(vids_options) as ydl:
-                for vid_info in vids_info:
-                    ydl.download([vid_info['webpage_url']])
-        else:
-            # create toplevel window to show download progress
+        if not is_playlist:
             create_toplevel_tk_window(vids_info['title'])
 
-            with youtube_dl.YoutubeDL(vids_options) as ydl:
-                ydl.download([
-                    vids_info['webpage_url']
-                ])
+        with youtube_dl.YoutubeDL(vids_options) as ydl:
+            ydl.download([
+                vids_info['webpage_url']
+            ])
 
         toggle_download_btns_state()
 
-        show_info_message(
-            f'MP3 file {vid_info["title"]} downloaded successfully!',
-            'THE MP3 FILE HAS BEEN DOWNLOADED SUCCESSFULLY!'
-        )
+        if is_playlist:
+            show_info_message(
+                f'Playlist {vids_info["title"]} downloaded successfully!',
+                'PLAYLIST DOWNLOADED SUCCESSFULLY!'
+            )
+        else:
+            show_info_message(
+                f'MP3 file {vids_info["title"]} downloaded successfully!',
+                'THE MP3 FILE HAS BEEN DOWNLOADED SUCCESSFULLY!'
+            )
 
     except Exception as e:
         show_error_message(UNEXPCTED_ERR_MSG)
