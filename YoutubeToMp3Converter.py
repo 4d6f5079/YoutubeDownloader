@@ -2,7 +2,7 @@ from os import path
 from tkinter.filedialog import askdirectory, askopenfile
 from tkinter.ttk import Progressbar
 import threading
-from tkinter import StringVar, Menu, messagebox
+from tkinter import Menu, messagebox
 import youtube_dl
 import tkinter as tk
 import re
@@ -42,12 +42,16 @@ YOUTUBE_URL_REGEX = re.compile('^(https?\:\/\/)?(www\.)?(youtube\.com|youtu\.?be
 YOUTUBE_PLAYLIST_URL_REGEX = re.compile('^(https|http):\/\/(?:www\.)?youtube\.com\/watch\?(?:&.*)*((?:v=([a-zA-Z0-9_\-]{11})(?:&.*)*&list=([a-zA-Z0-9_\-]{18}))(?:list=([a-zA-Z0-9_\-]{18})(?:&.*)*&v=([a-zA-Z0-9_\-]{11})))(?:&.*)*(?:\#.*)*$')
 
 ################################# PROGRESS BAR ##################################################################
-def create_toplevel_tk_window():
+def create_toplevel_tk_window(label_text=None):
     global root, TOPLEVEL_WINDOW
 
     newWindow = tk.Toplevel(root)
     newWindow.title("Downloading...")
-    newWindow.geometry("275x100")
+    newWindow.geometry("275x125")
+
+    if label_text:
+        label = tk.Label(master=newWindow, text=label_text, wraplength=newWindow.winfo_width())
+        label.grid(row=0,column=0)
 
     TOPLEVEL_WINDOW = newWindow
 
@@ -58,7 +62,7 @@ def show_progress(data):
         # creating progress bar
         progress_bar = Progressbar(TOPLEVEL_WINDOW, length=250, s='black.Horizontal.TProgressbar')
         progress_bar['value'] = 0
-        progress_bar.place(x=10, y=25)
+        progress_bar.grid(row=1,column=0)
 
         if data['status'] == 'finished':
             progress_bar['value'] = 100
@@ -190,14 +194,13 @@ def get_vid_info(vid_url):
     return vid_info
 
 
-def get_video_options(vid_dest):
+def get_video_options(vid_dest, progress_bar=True):
     global USING_PROXY
 
     vid_name = '%(title)s.%(ext)s'
     youtube_dl_options = {
         'format': 'bestaudio/best',
         'outtmpl': path.join(vid_dest, vid_name),
-        'progress_hooks': [show_progress],
         'keepvideo': False,
         'quiet': True,
         # 'prefer_ffmpeg': True, # --> optional
@@ -213,6 +216,9 @@ def get_video_options(vid_dest):
         if proxy:
             youtube_dl_options['proxy'] = proxy
             youtube_dl_options['nocheckcertificate'] = True
+
+    if progress_bar:
+        youtube_dl_options['progress_hooks'] = [show_progress]
 
     return youtube_dl_options
 ################################################################################################################################
@@ -278,7 +284,7 @@ def start_convert_multiple_youtube_to_mp3():
         with youtube_dl.YoutubeDL(vids_options) as ydl:
             for vid_info in vids_info:
                 # create toplevel window to show download progress for each download
-                create_toplevel_tk_window()
+                create_toplevel_tk_window(vid_info['title'])
                 ydl.download([vid_info['webpage_url']])
 
         toggle_download_btns_state()
@@ -304,37 +310,27 @@ def start_download():
 
         toggle_download_btns_state()
 
-        vid_info = get_vid_info(vid_url)
-        vid_options = get_video_options(vid_dest)
+        is_playlist_link = YOUTUBE_PLAYLIST_URL_REGEX.findall(vid_url)
+        if is_playlist_link:
+            vids_options = get_video_options(vid_dest, progress_bar=False)
+        else:
+            vids_options = get_video_options(vid_dest)
 
-        # create toplevel window to show download progress
-        create_toplevel_tk_window()
+        vids_info = get_vid_info(vid_url)
 
-        # start download 1 video
-        with youtube_dl.YoutubeDL(vid_options) as ydl:
-            ydl.download([
-                vid_info['webpage_url']
-            ])
-            
-        ############################################################################
-        # TODO: example download playlist list or list of videos
-        # with ydl:
-        # result = ydl.extract_info(
-        #     'http://www.youtube.com/watch?v=BaW_jenozKc',
-        #     download=False # We just want to extract the info
-        # )
+        # if link is of a playlist, then just download each video in the playlist. Otherwise its not a playlist and download 1 video
+        if is_playlist_link:
+            with youtube_dl.YoutubeDL(vids_options) as ydl:
+                for vid_info in vids_info:
+                    ydl.download([vid_info['webpage_url']])
+        else:
+            # create toplevel window to show download progress
+            create_toplevel_tk_window(vids_info['title'])
 
-        # if 'entries' in result:
-        #     # Can be a playlist or a list of videos
-        #     video = result['entries'][0]
-        # else:
-        #     # Just a video
-        #     video = result
-
-        # print(video)
-        # video_url = video['url']
-        # print(video_url)
-        ############################################################################
+            with youtube_dl.YoutubeDL(vids_options) as ydl:
+                ydl.download([
+                    vids_info['webpage_url']
+                ])
 
         toggle_download_btns_state()
 
@@ -497,3 +493,4 @@ def main(size_width=575, size_height=400):
 
 if __name__ == '__main__':
     main()
+    
