@@ -30,11 +30,24 @@ PROXY_BUTTON = None
 USING_PROXY = False
 TOR_PROXY_CHECKED = False
 TOPLEVEL_WINDOW = None
+CONVERSION_MODE = 'mp3'
+CONVERSION_MODE_BTN = None
 USERAGENTS_FILEPATH = './useragents.txt'
 CURRENT_SCRIPT_PATH = path.abspath(path.dirname(__file__))
 UNEXPCTED_ERR_MSG = 'Unexpected error occured. Please check logs for more info.'
 
 threads = []
+
+# mp4 video quality enum class
+class VideoQuality:
+    _1080P = '137' # mp4, no audio
+    _720P = '136' # mp4, no audio
+    _480P = '135' # mp4, no audio
+    _360P = '134' # mp4, no audio
+    _240P = '133' # mp4, no audio
+    _m4a_256k = '141' # m4a [256k] (DASH Audio)
+    _m4a_128k = '140' # m4a [128k] (DASH Audio)
+    _m4a_48k = '139' # m4a [48k] (DASH Audio)
 
 # this regex matches youtube urls with optional 'www.' behind 'youtube'
 # alternative complicated regex: ^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)([\w\-]+)(\S+)?$
@@ -195,21 +208,30 @@ def get_vid_info(vid_url):
 
 
 def get_video_options(vid_dest, progress_bar=True):
-    global USING_PROXY
+    global USING_PROXY, CONVERSION_MODE
 
     vid_name = '%(title)s.%(ext)s'
-    youtube_dl_options = {
-        'format': 'bestaudio/best',
-        'outtmpl': path.join(vid_dest, vid_name),
-        'keepvideo': False,
-        'quiet': True,
-        # 'prefer_ffmpeg': True, # --> optional
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-    }
+
+    if CONVERSION_MODE == 'mp3':
+        youtube_dl_options = {
+            'format': 'bestaudio/best',
+            'outtmpl': path.join(vid_dest, vid_name),
+            'keepvideo': False,
+            'quiet': True,
+            # 'prefer_ffmpeg': True, # --> optional
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+        }
+    else:
+        # TODO: make user choose from the available quality format of the video
+        # if no format specified, youtube_dl will download the best video+audio of the video
+        youtube_dl_options = {
+            'outtmpl': path.join(vid_dest, vid_name),
+            'quiet': True
+        }
 
     if USING_PROXY:
         proxy = get_proxy()
@@ -349,25 +371,53 @@ def start_download():
 def handle_proxy_btn():
     global PROXY_BUTTON, USING_PROXY, TOR_PROXY_CHECKED
     if PROXY_BUTTON:
-        if PROXY_BUTTON.config('text')[-1] == 'Currently not using proxy':
+        if PROXY_BUTTON.config('text')[-1] == 'Currently NOT using proxy':
             PROXY_BUTTON.config(text='Currently using TOR proxy')
             USING_PROXY = True
             if not TOR_PROXY_CHECKED: # check TOR connection ONCE
                 TOR_PROXY_CHECKED = True
                 test_tor_proxy_connection()
         else:
-            PROXY_BUTTON.config(text='Currently not using proxy')
+            PROXY_BUTTON.config(text='Currently NOT using proxy')
             USING_PROXY = False
+
+def handle_radio_btn():
+    global PROXY_BUTTON, USING_PROXY, TOR_PROXY_CHECKED
+    if PROXY_BUTTON:
+        if PROXY_BUTTON.config('text')[-1] == 'Currently NOT using proxy':
+            PROXY_BUTTON.config(text='Currently using TOR proxy')
+            USING_PROXY = True
+            if not TOR_PROXY_CHECKED: # check TOR connection ONCE
+                TOR_PROXY_CHECKED = True
+                test_tor_proxy_connection()
+        else:
+            PROXY_BUTTON.config(text='Currently NOT using proxy')
+            USING_PROXY = False
+
+def toggle_download_mode():
+    global CONVERSION_MODE_BTN, CONVERSION_MODE
+    if CONVERSION_MODE_BTN:
+        if CONVERSION_MODE_BTN.config('text')[-1] == 'Current conversion mode: mp3':
+            CONVERSION_MODE_BTN.config(text='Current conversion mode: mp4')
+            CONVERSION_MODE = 'mp4'
+        else:
+            CONVERSION_MODE_BTN.config(text='Current conversion mode: mp3')
+            CONVERSION_MODE = 'mp3'
 ##########################################################################################
 
 
 ###################################### WIDGETS CREATION (Buttons and Textboxes) #####################
 def create_root_buttons():
-    global root, BTN_START_DOWNLOAD, BTN_SELECT_DIR, BTN_DOWNLOAD_FROM_TXT, PROXY_BUTTON
+    global root, BTN_START_DOWNLOAD, BTN_SELECT_DIR, BTN_DOWNLOAD_FROM_TXT, PROXY_BUTTON, CONVERSION_MODE_BTN 
     PROXY_BUTTON = tk.Button(
         master=root,
-        text="Currently not using proxy",
+        text="Currently NOT using proxy",
         command=handle_proxy_btn
+    )
+    CONVERSION_MODE_BTN = tk.Button(
+        master=root,
+        text="Current conversion mode: mp3",
+        command=toggle_download_mode
     )
     BTN_START_DOWNLOAD = tk.Button(
         master=root,
@@ -394,6 +444,7 @@ def create_root_buttons():
     BTN_SELECT_DIR.pack(pady=5)
     BTN_DOWNLOAD_FROM_TXT.pack(pady=5)
     PROXY_BUTTON.pack(pady=5)
+    CONVERSION_MODE_BTN.pack(pady=5)
 
 
 def create_root_textboxes():
@@ -405,7 +456,7 @@ def create_root_textboxes():
     TB_URL.pack()
 
     # create destination label and textbox
-    destination_label = tk.Label(text="Destination path (where to download the mp3 file).")
+    destination_label = tk.Label(text="Destination path (where to download the video/mp3).")
     TB_DESTINATION_PATH = tk.Entry(state=tk.NORMAL, width=80)
 
     # insert current directory for the user for convinience
@@ -489,7 +540,7 @@ def init_tkinter_root(size):
     root.mainloop()
 
 
-def main(size_width=575, size_height=400):
+def main(size_width=575, size_height=475):
     init_tkinter_root(f'{size_width}x{size_height}')
 
 
