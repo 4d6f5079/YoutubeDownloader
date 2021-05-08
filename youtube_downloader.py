@@ -1,15 +1,13 @@
 from os import path
 from tkinter.filedialog import askdirectory, askopenfile
 from tkinter.ttk import Progressbar
-import threading
 from tkinter import Menu, messagebox
+import threading
 import youtube_dl
 import tkinter as tk
 import re
 import random
-import requests
-from stem import Signal
-from stem.control import Controller
+from tor_handler import TorHandler
 
 import logging
 logging.basicConfig(
@@ -27,11 +25,15 @@ BTN_SELECT_DIR = None
 BTN_DOWNLOAD_FROM_TXT = None
 RIGHT_CLICK_MENU = None
 PROXY_BUTTON = None
-USING_PROXY = False
-TOR_PROXY_CHECKED = False
 TOPLEVEL_WINDOW = None
-CONVERSION_MODE = 'mp3'
 CONVERSION_MODE_BTN = None
+TOR_HANDLER = TorHandler()
+
+USING_PROXY = False
+TOR_PROXY_CHECKED = 0
+CAN_CONNECT_TO_TOR = False
+
+CONVERSION_MODE = 'mp3'
 USERAGENTS_FILEPATH = './useragents.txt'
 CURRENT_SCRIPT_PATH = path.abspath(path.dirname(__file__))
 UNEXPCTED_ERR_MSG = 'Unexpected error occured. Please check logs for more info.'
@@ -39,15 +41,15 @@ UNEXPCTED_ERR_MSG = 'Unexpected error occured. Please check logs for more info.'
 threads = []
 
 # mp4 video quality enum class
-class VideoQuality:
-    _1080P = '137' # mp4, no audio
-    _720P = '136' # mp4, no audio
-    _480P = '135' # mp4, no audio
-    _360P = '134' # mp4, no audio
-    _240P = '133' # mp4, no audio
-    _m4a_256k = '141' # m4a [256k] (DASH Audio)
-    _m4a_128k = '140' # m4a [128k] (DASH Audio)
-    _m4a_48k = '139' # m4a [48k] (DASH Audio)
+# class VideoQuality:
+#     _1080P = '137' # mp4, no audio
+#     _720P = '136' # mp4, no audio
+#     _480P = '135' # mp4, no audio
+#     _360P = '134' # mp4, no audio
+#     _240P = '133' # mp4, no audio
+#     _m4a_256k = '141' # m4a [256k] (DASH Audio)
+#     _m4a_128k = '140' # m4a [128k] (DASH Audio)
+#     _m4a_48k = '139' # m4a [48k] (DASH Audio)
 
 # this regex matches youtube urls with optional 'www.' behind 'youtube'
 # alternative complicated regex: ^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)([\w\-]+)(\S+)?$
@@ -92,8 +94,9 @@ def show_progress(data):
         show_error_message(UNEXPCTED_ERR_MSG)
         logging.exception(UNEXPCTED_ERR_MSG)
         progress_bar.destroy()
-        TOPLEVEL_WINDOW.destroy()
-        TOPLEVEL_WINDOW = None
+        if TOPLEVEL_WINDOW:
+            TOPLEVEL_WINDOW.destroy()
+            TOPLEVEL_WINDOW = None
 ###################################################################################################
 
 ##################################### UTILITIES #########################
@@ -164,38 +167,9 @@ def convert_video_to_mp3():
 #             line = aline
 #         return line
 
-def get_tor_session():
-    # initialize a requests Session
-    session = requests.Session()
-    # setting the proxy of both http & https to the localhost:9050 
-    # this requires a running Tor service in your machine and listening on port 9050 (by default)
-    session.proxies = {"http": "socks5://localhost:9050", "https": "socks5://localhost:9050"}
-    return session
-
-def renew_tor_connection():
-    logging.debug('CHANGING IP ...')
-    with Controller.from_port(port=9051) as c:
-        c.authenticate()
-        # send NEWNYM signal to establish a new clean connection through the Tor network
-        c.signal(Signal.NEWNYM)
-    logging.debug('IP CHANGED!')
-
-def test_tor_proxy_connection():
-    try:
-        ip_test = requests.get('http://httpbin.org/ip').json()
-        renew_tor_connection()
-        tor_ip_test = requests.Session().get('http://httpbin.org/ip', proxies={ 'http': 'socks5://127.0.0.1:9050' }).json()
-        if ip_test != tor_ip_test:
-            show_info_message(f'Testing TOR Proxy\nYour IP:\n{ip_test}\nTor IP:\n{tor_ip_test}\nTor IP working correctly!')
-        else:
-            show_info_message('Your IP and Tor IP are the same: check you are running tor from commandline')
-    except Exception:
-        show_error_message(UNEXPCTED_ERR_MSG)
-        logging.error(UNEXPCTED_ERR_MSG)
-
 def get_proxy():
     # TODO: get random proxy if tor is not working
-    return 'socks5://127.0.0.1:9050'
+    return TOR_HANDLER.socks5_url
 ##################################################################################
 
 ##################### YOUTUBE-DL YOUTUBE TO MP3 CONVERSION FOR GETTING VIDEO INFO AND OPTIONS THAT YOUTUBE-DL NEEDS ############
@@ -332,17 +306,14 @@ def start_download():
             return
 
         toggle_download_btns_state()
+        
+        vids_info = get_vid_info(vid_url)
 
-        is_playlist = YOUTUBE_PLAYLIST_URL_REGEX.findall(vid_url)
-
-        if is_playlist:
+        # if link consists of multiple videos (playlist) then vids_info contains 'entries' otherwise there is 1 video
+        if 'entries' in vids_info:
             vids_options = get_video_options(vid_dest, progress_bar=False)
         else:
             vids_options = get_video_options(vid_dest)
-        vids_info = get_vid_info(vid_url)
-
-        # if link is of a playlist, then just download each video in the playlist. Otherwise its not a playlist and download 1 video
-        if not is_playlist:
             create_toplevel_tk_window(vids_info['title'])
 
         with youtube_dl.YoutubeDL(vids_options) as ydl:
@@ -352,7 +323,7 @@ def start_download():
 
         toggle_download_btns_state()
 
-        if is_playlist:
+        if 'entries' in vids_info:
             show_info_message(
                 f'Playlist {vids_info["title"]} downloaded successfully!',
                 'PLAYLIST DOWNLOADED SUCCESSFULLY!'
@@ -369,27 +340,25 @@ def start_download():
         toggle_download_btns_state()
     
 def handle_proxy_btn():
-    global PROXY_BUTTON, USING_PROXY, TOR_PROXY_CHECKED
+    global PROXY_BUTTON, USING_PROXY, TOR_PROXY_CHECKED, CAN_CONNECT_TO_TOR
     if PROXY_BUTTON:
         if PROXY_BUTTON.config('text')[-1] == 'Currently NOT using proxy':
-            PROXY_BUTTON.config(text='Currently using TOR proxy')
-            USING_PROXY = True
-            if not TOR_PROXY_CHECKED: # check TOR connection ONCE
-                TOR_PROXY_CHECKED = True
-                test_tor_proxy_connection()
-        else:
-            PROXY_BUTTON.config(text='Currently NOT using proxy')
-            USING_PROXY = False
+            TOR_PROXY_CHECKED += 1
 
-def handle_radio_btn():
-    global PROXY_BUTTON, USING_PROXY, TOR_PROXY_CHECKED
-    if PROXY_BUTTON:
-        if PROXY_BUTTON.config('text')[-1] == 'Currently NOT using proxy':
-            PROXY_BUTTON.config(text='Currently using TOR proxy')
-            USING_PROXY = True
-            if not TOR_PROXY_CHECKED: # check TOR connection ONCE
-                TOR_PROXY_CHECKED = True
-                test_tor_proxy_connection()
+            if TOR_PROXY_CHECKED % 5 == 0: # check TOR connection after every 5 clicks on the button 
+                try:
+                    CAN_CONNECT_TO_TOR, ip, tor_ip = TOR_HANDLER.test_tor_proxy_connection()
+                except Exception:
+                    show_error_message(UNEXPCTED_ERR_MSG)
+                    logging.error(UNEXPCTED_ERR_MSG)
+                    return
+            if CAN_CONNECT_TO_TOR:
+                show_info_message(f'Testing TOR Proxy\nYour IP:\n{ip}\nTor IP:\n{tor_ip}\nTor IP working correctly!')
+                PROXY_BUTTON.config(text='Currently using TOR proxy')
+                USING_PROXY = True
+            else:
+                show_info_message('Your IP and Tor IP are the same: check whether you are running tor from commandline')
+        
         else:
             PROXY_BUTTON.config(text='Currently NOT using proxy')
             USING_PROXY = False
