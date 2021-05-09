@@ -31,7 +31,6 @@ TOR_HANDLER = None
 
 USING_PROXY = False
 TOR_PROXY_CHECKED = -1
-CAN_CONNECT_TO_TOR = False
 
 CONVERSION_MODE = 'mp3'
 USERAGENTS_FILEPATH = './useragents.txt'
@@ -338,18 +337,19 @@ def start_download():
         toggle_download_btns_state()
     
 def handle_proxy_btn():
-    global PROXY_BUTTON, USING_PROXY, TOR_PROXY_CHECKED, CAN_CONNECT_TO_TOR
+    global PROXY_BUTTON, USING_PROXY, TOR_PROXY_CHECKED
     if PROXY_BUTTON:
         if PROXY_BUTTON.config('text')[-1] == 'Currently NOT using proxy':
             TOR_PROXY_CHECKED += 1
+            can_connect_to_tor = False
             if TOR_PROXY_CHECKED % 5 == 0: # check TOR connection after every 5 clicks on the button 
                 try:
-                    CAN_CONNECT_TO_TOR, ip, tor_ip = TOR_HANDLER.test_tor_proxy_connection()
+                    can_connect_to_tor, ip, tor_ip = TOR_HANDLER.test_tor_proxy_connection()
                 except Exception:
                     show_error_message(UNEXPCTED_ERR_MSG)
                     logging.error(UNEXPCTED_ERR_MSG)
                     return
-            if CAN_CONNECT_TO_TOR:
+            if can_connect_to_tor:
                 show_info_message(f'Testing TOR Proxy\nYour IP:\n{ip}\nTor IP:\n{tor_ip}\nTor IP working correctly!')
                 PROXY_BUTTON.config(text='Currently using TOR proxy')
                 USING_PROXY = True
