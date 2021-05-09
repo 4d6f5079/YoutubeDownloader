@@ -30,7 +30,7 @@ CONVERSION_MODE_BTN = None
 TOR_HANDLER = TorHandler()
 
 USING_PROXY = False
-TOR_PROXY_CHECKED = 0
+TOR_PROXY_CHECKED = -1
 CAN_CONNECT_TO_TOR = False
 
 CONVERSION_MODE = 'mp3'
@@ -58,15 +58,15 @@ YOUTUBE_PLAYLIST_URL_REGEX = re.compile('^(?:https?:\/\/)?(?:www\.)?youtu\.?be(?
 
 ################################# PROGRESS BAR ##################################################################
 def create_toplevel_tk_window(label_text=None):
-    global root, TOPLEVEL_WINDOW
+    global TOPLEVEL_WINDOW
 
-    newWindow = tk.Toplevel(root)
+    newWindow = tk.Toplevel()
     newWindow.title("Downloading...")
     newWindow.geometry("275x125")
 
     if label_text:
         label = tk.Label(master=newWindow, text=label_text, wraplength=newWindow.winfo_width())
-        label.grid(row=0,column=0)
+        label.pack(padx=0,pady=0)
 
     TOPLEVEL_WINDOW = newWindow
 
@@ -77,13 +77,13 @@ def show_progress(data):
         # creating progress bar
         progress_bar = Progressbar(TOPLEVEL_WINDOW, length=250, s='black.Horizontal.TProgressbar')
         progress_bar['value'] = 0
-        progress_bar.grid(row=1,column=0)
+        progress_bar.pack(padx=5, pady=25)
 
         if data['status'] == 'finished':
             progress_bar['value'] = 100
-            progress_bar.destroy()
-            TOPLEVEL_WINDOW.destroy()
-            TOPLEVEL_WINDOW = None
+            if TOPLEVEL_WINDOW:
+                TOPLEVEL_WINDOW.destroy()
+                TOPLEVEL_WINDOW = None
 
         if data['status'] == 'downloading':
             p = data['_percent_str']
@@ -93,7 +93,6 @@ def show_progress(data):
     except Exception:
         show_error_message(UNEXPCTED_ERR_MSG)
         logging.exception(UNEXPCTED_ERR_MSG)
-        progress_bar.destroy()
         if TOPLEVEL_WINDOW:
             TOPLEVEL_WINDOW.destroy()
             TOPLEVEL_WINDOW = None
@@ -297,7 +296,6 @@ def start_convert_multiple_youtube_to_mp3():
 
 
 def start_download():
-    global TOPLEVEL_WINDOW
     try:
         vid_url = get_url_from_textbox()
         vid_dest = get_download_destination_path()
