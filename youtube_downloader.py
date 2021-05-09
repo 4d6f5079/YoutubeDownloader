@@ -27,7 +27,7 @@ RIGHT_CLICK_MENU = None
 PROXY_BUTTON = None
 TOPLEVEL_WINDOW = None
 CONVERSION_MODE_BTN = None
-TOR_HANDLER = TorHandler()
+TOR_HANDLER = None
 
 USING_PROXY = False
 TOR_PROXY_CHECKED = -1
@@ -342,7 +342,6 @@ def handle_proxy_btn():
     if PROXY_BUTTON:
         if PROXY_BUTTON.config('text')[-1] == 'Currently NOT using proxy':
             TOR_PROXY_CHECKED += 1
-
             if TOR_PROXY_CHECKED % 5 == 0: # check TOR connection after every 5 clicks on the button 
                 try:
                     CAN_CONNECT_TO_TOR, ip, tor_ip = TOR_HANDLER.test_tor_proxy_connection()
@@ -356,7 +355,6 @@ def handle_proxy_btn():
                 USING_PROXY = True
             else:
                 show_info_message('Your IP and Tor IP are the same: check whether you are running tor from commandline')
-        
         else:
             PROXY_BUTTON.config(text='Currently NOT using proxy')
             USING_PROXY = False
@@ -508,6 +506,8 @@ def init_tkinter_root(size):
 
 
 def main(size_width=575, size_height=475):
+    global TOR_HANDLER
+    TOR_HANDLER = TorHandler() # init tor handler object
     init_tkinter_root(f'{size_width}x{size_height}')
 
 
