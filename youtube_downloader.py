@@ -205,10 +205,11 @@ def get_video_options(vid_dest: str, conversion_mode: str, video_quality_id: str
             }],
         }
     else:
-        # TODO: make user choose from the available quality format of the video
-        # if no format specified, youtube_dl will download the best video+audio of the video
+        # if no format specified, youtube_dl will download best audio with 720p video quality
+        # NOTE: if youtube_dl cant combine audio with specified mp4 format, it will convert it to mkv format instead 
+        # with given vid quality and best audio
         if not video_quality_id:
-            f = 'bestvideo[height<=480]+bestaudio/best[height<=480]'
+            f = 'bestvideo[height<=720]+bestaudio/best[height<=720]'
         else:
             f = f'{video_quality_id}+bestaudio'
 
