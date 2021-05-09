@@ -3,7 +3,7 @@ from stem import Signal
 from stem.control import Controller
 
 class TorHandler(object):
-    def __init__(self, tor_host='127.0.0.1', authentication_password=None):
+    def __init__(self, tor_host='localhost', authentication_password=None):
         self.authentication_password = authentication_password
         self.tor_host = tor_host
         self.controller_port = 9051
@@ -34,10 +34,9 @@ class TorHandler(object):
     
     def test_tor_proxy_connection(self):
         ip_test = requests.get('http://httpbin.org/ip').json()
-        renew_tor_connection()
-        tor_ip_test = requests.Session().get('http://httpbin.org/ip', proxies={ 'http': self.socks5_url }).json()
+        self.renew_tor_connection()
+        tor_ip_test = self.session.get("http://httpbin.org/ip").json()
         if ip_test != tor_ip_test:
             return True, ip_test, tor_ip_test
         else:
             return False, ip_test, tor_ip_test
-        

@@ -12,6 +12,8 @@
 
 ## NOTE 2: To be able to download via TOR network you have to have downloaded and started the Tor Windows Expert Bundle = https://www.torproject.org/download/tor/ 
 
+# NOTE 3: downloading video twice overrides the old first download! (applies to mp3 and mp4 downloads)
+
 ## TODOS  
 1. Show the error messages properly with red color and on top of all the other components of the gui  
 2. Make use of the Tkinter Grid to make components more responsive  
