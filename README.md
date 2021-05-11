@@ -4,15 +4,15 @@
 
 ## IMPORTANT TODOS  
 1. Correctly align progress bar in new tkinter window - DONE
-2. add playlist download functionality
+2. add playlist download functionality - DONE
 3. make it optional to also be able to download via TOR network - DONE  
 4. Add exceptions logger - DONE
-5. Support mp4 youtube videos download option
+5. Support mp4 youtube videos download option - DONE
 6. Make possible for user to choose video quality when downloading videos in mp4
 
 ## NOTE 2: To be able to download via TOR network you have to have downloaded and started the Tor Windows Expert Bundle = https://www.torproject.org/download/tor/ 
 
-# NOTE 3: downloading video twice overrides the old first download! (applies to mp3 and mp4 downloads)
+### NOTE 3: downloading video twice overrides the old first download! (applies to mp3 and mp4 downloads)
 
 ## TODOS  
 1. Show the error messages properly with red color and on top of all the other components of the gui  
