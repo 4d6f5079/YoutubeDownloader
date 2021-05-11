@@ -2,13 +2,14 @@ from os import path
 from tkinter.filedialog import askdirectory, askopenfile
 from tkinter.ttk import Progressbar
 from tkinter import Menu, messagebox
+from tor_handler import TorHandler
+from toplevel_window_manager import ToplevelManager
+from pprint import pprint
 import threading
 import youtube_dl
 import tkinter as tk
 import re
 import random
-from tor_handler import TorHandler
-from pprint import pprint
 
 import logging
 logging.basicConfig(
@@ -46,45 +47,45 @@ YOUTUBE_URL_REGEX = re.compile('^(https?\:\/\/)?(www\.)?(youtube\.com|youtu\.?be
 YOUTUBE_PLAYLIST_URL_REGEX = re.compile('^(?:https?:\/\/)?(?:www\.)?youtu\.?be(?:\.com)?.*?(?:v|list)=(.*?)(?:&|$)|^(?:https?:\/\/)?(?:www\.)?youtu\.?be(?:\.com)?(?:(?!=).)*\/(.*)$')
 
 ################################# PROGRESS BAR ##################################################################
-def create_toplevel_tk_window(label_text=None):
-    global TOPLEVEL_WINDOW
+# def create_toplevel_tk_window(label_text=None):
+#     global TOPLEVEL_WINDOW
 
-    newWindow = tk.Toplevel()
-    newWindow.title("Downloading...")
-    newWindow.geometry("275x125")
+#     newWindow = tk.Toplevel()
+#     newWindow.title("Downloading...")
+#     newWindow.geometry("275x125")
 
-    if label_text:
-        label = tk.Label(master=newWindow, text=label_text, wraplength=newWindow.winfo_width())
-        label.pack(padx=0,pady=0)
+#     if label_text:
+#         label = tk.Label(master=newWindow, text=label_text, wraplength=newWindow.winfo_width())
+#         label.pack(padx=0,pady=0)
 
-    TOPLEVEL_WINDOW = newWindow
+#     TOPLEVEL_WINDOW = newWindow
 
-def show_progress(data):
-    global TOPLEVEL_WINDOW
+# def show_progress(data):
+#     global TOPLEVEL_WINDOW
     
-    try:
-        # creating progress bar
-        progress_bar = Progressbar(TOPLEVEL_WINDOW, length=250, s='black.Horizontal.TProgressbar')
-        progress_bar['value'] = 0
-        progress_bar.pack(padx=5, pady=25)
+#     try:
+#         # creating progress bar
+#         progress_bar = Progressbar(TOPLEVEL_WINDOW, length=250, s='black.Horizontal.TProgressbar')
+#         progress_bar['value'] = 0
+#         progress_bar.pack(padx=5, pady=25)
 
-        if data['status'] == 'finished':
-            progress_bar['value'] = 100
-            if TOPLEVEL_WINDOW:
-                TOPLEVEL_WINDOW.destroy()
-                TOPLEVEL_WINDOW = None
+#         if data['status'] == 'finished':
+#             progress_bar['value'] = 100
+#             if TOPLEVEL_WINDOW:
+#                 TOPLEVEL_WINDOW.destroy()
+#                 TOPLEVEL_WINDOW = None
 
-        if data['status'] == 'downloading':
-            p = data['_percent_str']
-            p = p.replace('%', '')
-            progress_bar['value'] = float(p)
+#         if data['status'] == 'downloading':
+#             p = data['_percent_str']
+#             p = p.replace('%', '')
+#             progress_bar['value'] = float(p)
 
-    except Exception:
-        show_error_message(UNEXPCTED_ERR_MSG)
-        logging.exception(UNEXPCTED_ERR_MSG)
-        if TOPLEVEL_WINDOW:
-            TOPLEVEL_WINDOW.destroy()
-            TOPLEVEL_WINDOW = None
+#     except Exception:
+#         show_error_message(UNEXPCTED_ERR_MSG)
+#         logging.exception(UNEXPCTED_ERR_MSG)
+#         if TOPLEVEL_WINDOW:
+#             TOPLEVEL_WINDOW.destroy()
+#             TOPLEVEL_WINDOW = None
 ###################################################################################################
 
 ##################################### UTILITIES #########################
@@ -174,7 +175,7 @@ def get_available_formats(vids_info):
     for f in formats:
         if 'audio' not in f['format'] and f['ext'] == 'mp4':
             f_str = f"{f['ext']} - {f['format']}"
-            f_id = f"{f['format_id']}" 
+            f_id = f['format_id']
             available_formats_list.append((f_id, f_str))
     return available_formats_list
 
@@ -186,7 +187,12 @@ def get_vid_info(vid_url):
     return vid_info
 
 
-def get_video_options(vid_dest: str, conversion_mode: str, video_quality_id: str = None, progress_bar: bool = True):
+def get_video_options(
+    vid_dest: str,
+    conversion_mode: str,
+    video_quality_id: str = None
+    # progress_bar = True
+):
     global USING_PROXY
 
     vid_name = '%(title)s.%(ext)s'
@@ -225,8 +231,8 @@ def get_video_options(vid_dest: str, conversion_mode: str, video_quality_id: str
             youtube_dl_options['proxy'] = proxy
             youtube_dl_options['nocheckcertificate'] = True
 
-    if progress_bar:
-        youtube_dl_options['progress_hooks'] = [show_progress]
+    # if progress_bar:
+    #     youtube_dl_options['progress_hooks'] = [show_progress]
 
     return youtube_dl_options
 ################################################################################################################################
@@ -264,7 +270,9 @@ def select_video_quality(available_formats: list) -> str:
     Returns:
         format_id: the selected format id
     """
-    # TODO: for now always select 480p for testing. in the future, implement user UI where the user can select format
+    # TODO: for now always select 480p for testing. 
+    # For later, make a context manager class that initializes and handles user UI
+    # where the user can select format
     for (f_id, f_info) in available_formats:
         if '480p' in f_info:
             return f_id
@@ -289,6 +297,7 @@ def toggle_download_btns_state():
 
 ##################################### HANDLE SINGLE URL DOWNLOAD AND MULTIPLE URLS DOWNLOADS LOGIC ###############
 def start_convert_multiple_youtube_to_mp3():
+    global CONVERSION_MODE
     try:
         vids_dest = get_download_destination_path()
         urls_to_download = read_youtube_urls()
@@ -300,18 +309,20 @@ def start_convert_multiple_youtube_to_mp3():
         # disable both download btn and btn of download from txt file
         toggle_download_btns_state()
 
-        vids_options = get_video_options(vids_dest)
         vids_info = []
 
         for yt_url in urls_to_download:
             vids_info.append(get_vid_info(yt_url))
 
+        vids_options = get_video_options(vids_dest, CONVERSION_MODE)
+
         # start downloading and converting the given youtube videos to mp3
         with youtube_dl.YoutubeDL(vids_options) as ydl:
             for vid_info in vids_info:
                 # create toplevel window to show download progress for each download
-                create_toplevel_tk_window(vid_info['title'])
-                ydl.download([vid_info['webpage_url']])
+                with ToplevelManager(label_text=f'Downloading {vid_info["title"]} ...'):
+                    # create_toplevel_tk_window(vid_info['title'])
+                    ydl.download([vid_info['webpage_url']])
 
         toggle_download_btns_state()
         
@@ -344,7 +355,10 @@ def start_download():
         # if link consists of multiple videos (playlist) then vids_info contains 'entries' otherwise there is 1 video
         if 'entries' in vids_info:
             if CONVERSION_MODE == 'mp3':
-                vids_options = get_video_options(vid_dest, CONVERSION_MODE, progress_bar=False)
+                vids_options = get_video_options(
+                    vid_dest, CONVERSION_MODE
+                    # progress_bar=False
+                )
             else:
                 list_selected_video_format=[]
 
@@ -355,33 +369,35 @@ def start_download():
                     selected_video_format = select_video_quality(available_formats)
                     print(f'selected video {idx} q: ', selected_video_format)
 
-                    vid_opt = get_video_options(vid_dest, CONVERSION_MODE, video_quality_id=selected_video_format, progress_bar=False)
-                    list_vids_options.append(vid_opt)       
-        else:
-            if CONVERSION_MODE == 'mp3':
-                vids_options = get_video_options(vid_dest, CONVERSION_MODE)
-            else:
-                available_formats = get_available_formats(vids_info)
-                pprint(available_formats)
+                    vid_opt = get_video_options(
+                        vid_dest, CONVERSION_MODE, video_quality_id=selected_video_format
+                        # progress_bar=False
+                    )
+                    list_vids_options.append(vid_opt)  
 
-                selected_video_format = select_video_quality(available_formats)
-                print('selected video q: ', selected_video_format)
-
-                vids_options = get_video_options(vid_dest, CONVERSION_MODE, video_quality_id=selected_video_format)
-
-            create_toplevel_tk_window(vids_info['title'])
-
-        if list_vids_options:
             for vid_opt in list_vids_options:
                 with youtube_dl.YoutubeDL(vid_opt) as ydl:
                     ydl.download([
                         vids_info['webpage_url']
+                    ])     
+        else:
+            with ToplevelManager(label_text=f"Downloading {vids_info['title']} ..."):
+                if CONVERSION_MODE == 'mp3':
+                    vids_options = get_video_options(vid_dest, CONVERSION_MODE)
+                else:
+                    available_formats = get_available_formats(vids_info)
+                    pprint(available_formats)
+
+                    selected_video_format = select_video_quality(available_formats)
+                    print('selected video q: ', selected_video_format)
+
+                    vids_options = get_video_options(vid_dest, CONVERSION_MODE, video_quality_id=selected_video_format)
+
+                # create_toplevel_tk_window(vids_info['title'])
+                with youtube_dl.YoutubeDL(vids_options) as ydl:
+                    ydl.download([
+                        vids_info['webpage_url']
                     ])
-        else:   
-            with youtube_dl.YoutubeDL(vids_options) as ydl:
-                ydl.download([
-                    vids_info['webpage_url']
-                ])
 
         toggle_download_btns_state()
 
