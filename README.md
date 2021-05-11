@@ -8,7 +8,7 @@
 3. make it optional to also be able to download via TOR network - DONE  
 4. Add exceptions logger - DONE
 5. Support mp4 youtube videos download option - DONE
-6. Make possible for user to choose video quality when downloading videos in mp4
+6. Make possible for user to choose video quality when downloading videos in mp4 - DONE
 
 ## NOTE 2: To be able to download via TOR network you have to have downloaded and started the Tor Windows Expert Bundle = https://www.torproject.org/download/tor/ 
 

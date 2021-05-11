@@ -4,7 +4,7 @@ from tkinter.ttk import Progressbar
 from tkinter import Menu, messagebox
 from tor_handler import TorHandler
 from toplevel_window_manager import ToplevelManager
-from pprint import pprint
+from video_quality_selector_manager import VideoQualitySelector
 import threading
 import youtube_dl
 import tkinter as tk
@@ -211,11 +211,11 @@ def get_video_options(
             }],
         }
     else:
-        # if no format specified, youtube_dl will download best audio with 720p video quality
+        # if no format specified, youtube_dl will download best audio with 480p video quality
         # NOTE: if youtube_dl cant combine audio with specified mp4 format, it will convert it to mkv format instead 
         # with given vid quality and best audio
         if not video_quality_id:
-            f = 'bestvideo[height<=720]+bestaudio/best[height<=720]'
+            f = 'bestvideo[height<=480]+bestaudio/best[height<=480]'
         else:
             f = f'{video_quality_id}+bestaudio'
 
@@ -261,21 +261,18 @@ def url_check(url):
 
 
 ###################################### HANDLING SELECTION QUALITY OF VIDEO ###################
-def select_video_quality(available_formats: list) -> str:
+def select_video_quality(vids_info: list) -> str:
     """Returns the format id of the selected format from the available formats
 
     Args:
-        available_formats (list): list of tuples in format (format_id, format_info)
+        vids_info (dict): info about video to download
 
     Returns:
-        format_id: the selected format id
+        format_id: the selected format id, otherwise empty string '' is returned
     """
-    # TODO: for now always select 480p for testing. 
-    # For later, make a context manager class that initializes and handles user UI
-    # where the user can select format
-    for (f_id, f_info) in available_formats:
-        if '480p' in f_info:
-            return f_id
+    available_formats = get_available_formats(vids_info)
+    with VideoQualitySelector(available_formats, vids_info['title']) as selected_format:
+        return selected_format
 ##############################################################################################
 
 
@@ -349,11 +346,12 @@ def start_download():
         toggle_download_btns_state()
         
         vids_info = get_vid_info(vid_url)
-        
-        list_vids_options = [] # in case playlist of vids need to be downloaded
 
         # if link consists of multiple videos (playlist) then vids_info contains 'entries' otherwise there is 1 video
         if 'entries' in vids_info:
+            list_vids_options = [] # in case playlist of vids need to be downloaded
+            vids_options = None # in case playlist of mp3 need to be downloaded
+
             if CONVERSION_MODE == 'mp3':
                 vids_options = get_video_options(
                     vid_dest, CONVERSION_MODE
@@ -363,11 +361,13 @@ def start_download():
                 list_selected_video_format=[]
 
                 for idx, vid in enumerate(vids_info['entries']):
-                    available_formats = get_available_formats(vid)
-                    pprint(available_formats)
-
-                    selected_video_format = select_video_quality(available_formats)
+                    selected_video_format = select_video_quality(vids_info)
                     print(f'selected video {idx} q: ', selected_video_format)
+
+                    # if not video format has been chosen, then just abort download
+                    if not selected_video_format: 
+                        toggle_download_btns_state()
+                        return
 
                     vid_opt = get_video_options(
                         vid_dest, CONVERSION_MODE, video_quality_id=selected_video_format
@@ -375,21 +375,29 @@ def start_download():
                     )
                     list_vids_options.append(vid_opt)  
 
-            for vid_opt in list_vids_options:
-                with youtube_dl.YoutubeDL(vid_opt) as ydl:
-                    ydl.download([
-                        vids_info['webpage_url']
-                    ])     
+            if list_vids_options:
+                for vid_opt in list_vids_options:
+                    with youtube_dl.YoutubeDL(vid_opt) as ydl:
+                        ydl.download([
+                            vids_info['webpage_url']
+                        ])    
+            else:
+                 with youtube_dl.YoutubeDL(vids_options) as ydl:
+                        ydl.download([
+                            vids_info['webpage_url']
+                        ])  
         else:
             with ToplevelManager(label_text=f"Downloading {vids_info['title']} ..."):
                 if CONVERSION_MODE == 'mp3':
                     vids_options = get_video_options(vid_dest, CONVERSION_MODE)
                 else:
-                    available_formats = get_available_formats(vids_info)
-                    pprint(available_formats)
-
-                    selected_video_format = select_video_quality(available_formats)
+                    selected_video_format = select_video_quality(vids_info)
                     print('selected video q: ', selected_video_format)
+
+                    # if not video format has been chosen, then just abort download
+                    if not selected_video_format:
+                        toggle_download_btns_state() 
+                        return
 
                     vids_options = get_video_options(vid_dest, CONVERSION_MODE, video_quality_id=selected_video_format)
 
