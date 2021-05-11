@@ -1,6 +1,5 @@
 import tkinter as tk
 
-# TODO:
 class VideoQualitySelector():
 
     def __init__(self, available_formats, vid_name):

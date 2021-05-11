@@ -4,7 +4,11 @@ from tkinter.ttk import Progressbar
 from tkinter import Menu, messagebox
 from tor_handler import TorHandler
 from toplevel_window_manager import ToplevelManager
+<<<<<<< HEAD
 from video_quality_selector_manager import VideoQualitySelector
+=======
+from pprint import pprint
+>>>>>>> 86560a0fe770996a749a6e0c161e8d0e43faed8d
 import threading
 import youtube_dl
 import tkinter as tk
