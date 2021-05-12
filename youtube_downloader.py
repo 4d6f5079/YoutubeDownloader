@@ -270,9 +270,10 @@ def select_video_quality(vids_info: list) -> str:
     Returns:
         format_id: the selected format id, otherwise empty string '' is returned
     """
+    global root
+
     available_formats = get_available_formats(vids_info)
-    with VideoQualitySelector(available_formats, vids_info['title']) as selected_format:
-        return selected_format
+    return VideoQualitySelector(root, available_formats, vids_info['title']).show()
 ##############################################################################################
 
 
@@ -362,7 +363,6 @@ def start_download():
 
                 for idx, vid in enumerate(vids_info['entries']):
                     selected_video_format = select_video_quality(vids_info)
-                    print(f'selected video {idx} q: ', selected_video_format)
 
                     # if not video format has been chosen, then just abort download
                     if not selected_video_format: 
@@ -392,7 +392,6 @@ def start_download():
                     vids_options = get_video_options(vid_dest, CONVERSION_MODE)
                 else:
                     selected_video_format = select_video_quality(vids_info)
-                    print('selected video q: ', selected_video_format)
 
                     # if not video format has been chosen, then just abort download
                     if not selected_video_format:
