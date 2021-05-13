@@ -8,7 +8,7 @@
 2. Git Bash
 3. FFMpeg.exe file in the same folder as youtube-dl package in virtualenv directory.
 4. (OPTIONAL) FFProbe.exe file
-5. (OPTIONAL) To be able to download via TOR network you have to have downloaded and started the Tor Windows Expert Bundle = https://www.torprojectorg/download/tor/
+5. (OPTIONAL) To be able to download via TOR network you have to have downloaded and started the Tor Windows Expert Bundle = https://www.torproject.org/download/tor/
 
 ---
 
