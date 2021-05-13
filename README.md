@@ -4,17 +4,30 @@
 
 # Requirements
 
-## Python 3.3 or higher (preferably version 3.8)
+1. Python 3.3 or higher (preferably version 3.8)
+2. Git Bash
 
 ---
 
-# Installation for devs (requires bash launcher to run bash script)
+# Installation
 
 ```
 ./build_env.sh
 ```
 
 ## After this set python interpreter to python.exe in the generated venv directory (if coding in VSCode)
+
+---
+
+# Building executable file
+
+- Only build after installation process otherwise required libraries may not be available.
+
+```
+python setup.py build
+```
+
+- When building is completed, a "build" folder will be generated where the executable is located.
 
 ---
 
