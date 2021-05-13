@@ -12,7 +12,7 @@ class VideoQualitySelector(tk.Toplevel):
 
         # init toplevel with title and size
         self.title("Select video quality")
-        self.geometry("450x500")
+        self.geometry("450x380")
 
         # create label to show soem text
         self.label = tk.Label(

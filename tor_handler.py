@@ -10,7 +10,6 @@ class TorHandler(object):
         self.controller_port = 9051
         self.tor_port = 9050
         self.socks5_url = f"socks5://{self.tor_host}:{self.tor_port}"
-        self.session = self.get_tor_session()
 
     def get_tor_session(self):
         # initialize a requests Session
@@ -35,8 +34,9 @@ class TorHandler(object):
 
     def test_tor_proxy_connection(self):
         ip_test = requests.get("http://httpbin.org/ip").json()
+        new_sess = self.get_tor_session()
         self.renew_tor_connection()
-        tor_ip_test = self.session.get("http://httpbin.org/ip").json()
+        tor_ip_test = new_sess.get("http://httpbin.org/ip").json()
         if ip_test != tor_ip_test:
             return True, ip_test, tor_ip_test
         else:
