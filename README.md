@@ -6,6 +6,9 @@
 
 1. Python 3.3 or higher (preferably version 3.8)
 2. Git Bash
+3. FFMpeg.exe file in the same folder as youtube-dl package in virtualenv directory.
+4. (OPTIONAL) FFProbe.exe file
+5. (OPTIONAL) To be able to download via TOR network you have to have downloaded and started the Tor Windows Expert Bundle = https://www.torprojectorg/download/tor/
 
 ---
 
@@ -28,14 +31,6 @@ python setup.py build
 ```
 
 - When building is completed, a "build" folder will be generated where the executable is located.
-
----
-
-# IMPORTANT NOTES
-
-1. Make sure that ffmpeg exe file is in the same folder as youtube-dl package in virtualenv directory.
-2. To be able to download via TOR network you have to have downloaded and started the Tor Windows Expert Bundle = https://www.torprojectorg/download/tor/
-3. Downloading video twice overrides the old first download! (applies to mp3 and mp4 downloads)
 
 ---
 
