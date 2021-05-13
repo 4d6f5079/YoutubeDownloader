@@ -9,7 +9,6 @@ import threading
 import youtube_dl
 import tkinter as tk
 import re
-import random
 
 import logging
 logging.basicConfig(
