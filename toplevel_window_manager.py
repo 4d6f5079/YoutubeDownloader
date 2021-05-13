@@ -1,8 +1,8 @@
 import tkinter as tk
 
-class ToplevelManager():
 
-    def __init__(self, label_text=None):
+class ToplevelManager:
+    def __init__(self, label_text):
         self.label_text = label_text
 
     def __enter__(self):
@@ -11,11 +11,8 @@ class ToplevelManager():
         self.newWindow.geometry("300x175")
 
         if self.label_text:
-            label = tk.Label(
-                master=self.newWindow,
-                text=self.label_text
-            )
-            label.pack(padx=2,pady=2)
+            label = tk.Label(master=self.newWindow, text=self.label_text)
+            label.pack(padx=2, pady=2)
 
     def __exit__(self, exc_type, exc_val, traceback):
         self.newWindow.destroy()

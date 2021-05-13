@@ -1,14 +1,14 @@
 import tkinter as tk
 from tkinter import Scrollbar, Frame
 
-class VideoQualitySelector(tk.Toplevel):
 
+class VideoQualitySelector(tk.Toplevel):
     def __init__(self, parent, available_formats, vid_name):
         super().__init__(parent)
 
         self.available_formats = available_formats
         self.vid_title = vid_name
-        self.selection = ''
+        self.selection = ""
 
         # init toplevel with title and size
         self.title("Select video quality")
@@ -16,8 +16,7 @@ class VideoQualitySelector(tk.Toplevel):
 
         # create label to show soem text
         self.label = tk.Label(
-                master=self,
-                text=f"Select video quality for \"{self.vid_title}\""
+            master=self, text=f'Select video quality for \n "{self.vid_title}"'
         )
         self.label.pack(pady=7)
 
@@ -34,14 +33,16 @@ class VideoQualitySelector(tk.Toplevel):
         self.scrollbar.config(command=self.listbox.yview)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.listbox.config(yscrollcommand=self.scrollbar.set)
-        
+
         # create button to confirm the selected video quality
-        self.btn = tk.Button(self, text="Confirm selection video quality", command=self.select)
+        self.btn = tk.Button(
+            self, text="Confirm selection video quality", command=self.select
+        )
         self.btn.pack(pady=7)
 
         # init listbox with the video quality items
         for (_, f_info) in self.available_formats:
-            self.listbox.insert(tk.END, f_info) 
+            self.listbox.insert(tk.END, f_info)
 
     def select(self):
         """
