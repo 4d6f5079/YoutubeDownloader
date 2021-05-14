@@ -8,7 +8,7 @@
 2. Git Bash
 3. FFMpeg.exe file in the same folder as youtube-dl package in virtualenv directory.
 4. (OPTIONAL) FFProbe.exe file
-5. (OPTIONAL) To be able to download via TOR network you have to have downloaded and started the Tor Windows Expert Bundle = https://www.torproject.org/download/tor/
+5. (OPTIONAL, does not work in exe file of the youtube downloader!) To be able to download via TOR network you have to have downloaded and started the Tor Windows Expert Bundle = https://www.torproject.org/download/tor/
 
 ---
 
@@ -19,18 +19,6 @@
 ```
 
 ## After this set python interpreter to python.exe in the generated venv directory (if coding in VSCode)
-
----
-
-# Building executable file
-
-- Only build after installation process otherwise required libraries may not be available.
-
-```
-python setup.py build
-```
-
-- When building is completed, a "build" folder will be generated where the executable is located.
 
 ---
 
@@ -48,3 +36,4 @@ python setup.py build
 4. Make use of text areas that are not editable, as now the error messages is editable by the user
 5. Make it possible for the user to provide his/her own name of the mp3 file, instead of always using the default name of the video itself. Make it so that if no name is provided that the video name is used for the mp3 filename.
 6. Include a logo for the y2mp3 converter on the front-page on top of al lthe components that come after. Also make background black-grey-ish instead of white.
+7. Make TOR work in the executable file.
