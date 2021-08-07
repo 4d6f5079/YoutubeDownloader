@@ -37,3 +37,4 @@
 5. Make it possible for the user to provide his/her own name of the mp3 file, instead of always using the default name of the video itself. Make it so that if no name is provided that the video name is used for the mp3 filename.
 6. Include a logo for the y2mp3 converter on the front-page on top of al lthe components that come after. Also make background black-grey-ish instead of white.
 7. Make TOR work in the executable file.
+8. Currently no support for age restricted download.

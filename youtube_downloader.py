@@ -184,7 +184,11 @@ def get_available_formats(vids_info):
     formats = vids_info.get("formats", [vids_info])
     available_formats_list = []
     for f in formats:
-        if "audio" not in f["format"] and f["ext"] == "mp4":
+        if (
+            "audio" not in f["format"]
+            and f["ext"] == "mp4"
+            and "DASH" not in f["format"]
+        ):
             f_str = f"{f['ext']} - {f['format']}"
             f_id = f["format_id"]
             available_formats_list.append((f_id, f_str))
@@ -370,7 +374,8 @@ def start_download():
 
         vids_info = get_vid_info(vid_url)
 
-        # if link consists of multiple videos (playlist) then vids_info contains 'entries' otherwise there is 1 video
+        # if link consists of multiple videos (playlist) then vids_info contains 'entries'
+        # otherwise there is 1 video
         if "entries" in vids_info:
             list_vids_options = []  # in case playlist of vids need to be downloaded
             vids_options = None  # in case playlist of mp3 need to be downloaded
@@ -385,7 +390,7 @@ def start_download():
                 list_selected_video_format = []
 
                 for idx, vid in enumerate(vids_info["entries"]):
-                    selected_video_format = select_video_quality(vids_info)
+                    selected_video_format = select_video_quality(vid)
 
                     # if not video format has been chosen, then just abort download
                     if not selected_video_format:
